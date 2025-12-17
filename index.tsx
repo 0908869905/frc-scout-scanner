@@ -49,14 +49,14 @@ const FRC_COLUMNS = [
 // Helper to fix common split issues and align columns
 const fixSplitData = (parts: string[]): string[] => {
   let newParts: string[] = [];
-  
+
   // 1. Merge "Shallow Cage" and "Deep Cage"
   for (let i = 0; i < parts.length; i++) {
     const curr = parts[i];
     const next = parts[i + 1];
     if ((curr === 'Shallow' || curr === 'Deep') && next === 'Cage') {
       newParts.push(`${curr} ${next}`);
-      i++; 
+      i++;
     } else {
       newParts.push(curr);
     }
@@ -65,14 +65,14 @@ const fixSplitData = (parts: string[]): string[] => {
   // 2. Fix Offset: Check if teleEndGame (index 35) is shifted by an extra column
   const endIndex = 35; // index of teleEndGame
   if (newParts.length > endIndex + 1) {
-     const validEndGames = ['None', 'Park', 'Shallow Cage', 'Deep Cage'];
-     const valAt35 = newParts[endIndex];
-     const valAt36 = newParts[endIndex + 1];
+    const validEndGames = ['None', 'Park', 'Shallow Cage', 'Deep Cage'];
+    const valAt35 = newParts[endIndex];
+    const valAt36 = newParts[endIndex + 1];
 
-     if (!validEndGames.includes(valAt35) && validEndGames.includes(valAt36)) {
-        // Shift detected! Remove the extra column at index 34
-        newParts.splice(34, 1);
-     }
+    if (!validEndGames.includes(valAt35) && validEndGames.includes(valAt36)) {
+      // Shift detected! Remove the extra column at index 34
+      newParts.splice(34, 1);
+    }
   }
 
   return newParts;
@@ -81,19 +81,19 @@ const fixSplitData = (parts: string[]): string[] => {
 // Helper to parse space-separated data
 const parseFrcData = (raw: string): Record<string, string> => {
   let parts = raw.trim().split(/\s+/);
-  
+
   // Apply fix for split strings and offsets
   parts = fixSplitData(parts);
 
   const data: Record<string, string> = {};
-  
+
   FRC_COLUMNS.forEach((col, index) => {
     if (index < parts.length) {
       // Special handling for the last column (comments) to include all remaining text
       if (index === FRC_COLUMNS.length - 1) {
-         data[col] = parts.slice(index).join(' ');
+        data[col] = parts.slice(index).join(' ');
       } else {
-         data[col] = parts[index];
+        data[col] = parts[index];
       }
     }
   });
@@ -220,7 +220,7 @@ const App = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
   const [notification, setNotification] = useState<Notification | null>(null);
-  
+
   // Camera Zoom State
   const [zoom, setZoom] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
@@ -303,8 +303,8 @@ const App = () => {
   const saveSettings = () => {
     let cleanUrl = scriptUrl.trim();
     if (cleanUrl && !cleanUrl.startsWith('http')) {
-        alert("網址格式錯誤，請包含 https://");
-        return;
+      alert("網址格式錯誤，請包含 https://");
+      return;
     }
     setScriptUrl(cleanUrl);
     localStorage.setItem('frc_script_url', cleanUrl);
@@ -315,14 +315,14 @@ const App = () => {
 
   const copyScriptToClipboard = () => {
     navigator.clipboard.writeText(GAS_SCRIPT_TEMPLATE).then(() => {
-        showToast("程式碼已複製！", "success");
+      showToast("程式碼已複製！", "success");
     });
   };
 
   // --- Camera Logic ---
   const startCamera = async () => {
     if (!selectedCamera) return;
-    
+
     try {
       if (streamRef.current) stopCamera();
 
@@ -339,29 +339,29 @@ const App = () => {
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
+
         // --- Detect Zoom Capabilities ---
         const track = stream.getVideoTracks()[0];
         const caps = track.getCapabilities ? track.getCapabilities() : {} as any;
-        
+
         // Check standard 'zoom' capability
         if ('zoom' in caps) {
-           setHasZoom(true);
-           setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
-           setZoom(caps.zoom.min);
+          setHasZoom(true);
+          setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
+          setZoom(caps.zoom.min);
         } else {
-           setHasZoom(false);
+          setHasZoom(false);
         }
 
         // Ensure video plays (Safari requirement)
         videoRef.current.onloadedmetadata = () => {
-             videoRef.current?.play().catch(e => console.error("Play error:", e));
+          videoRef.current?.play().catch(e => console.error("Play error:", e));
         };
-        
+
         setIsScanning(true);
         isScanningRef.current = true;
         requestRef.current = requestAnimationFrame(tick);
@@ -373,13 +373,13 @@ const App = () => {
   };
 
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newZoom = parseFloat(e.target.value);
-      setZoom(newZoom);
-      if (streamRef.current) {
-          const track = streamRef.current.getVideoTracks()[0];
-          // @ts-ignore
-          track.applyConstraints({ advanced: [{ zoom: newZoom }] }).catch(e => console.log('Zoom error', e));
-      }
+    const newZoom = parseFloat(e.target.value);
+    setZoom(newZoom);
+    if (streamRef.current) {
+      const track = streamRef.current.getVideoTracks()[0];
+      // @ts-ignore
+      track.applyConstraints({ advanced: [{ zoom: newZoom }] }).catch(e => console.log('Zoom error', e));
+    }
   };
 
   const stopCamera = () => {
@@ -409,14 +409,14 @@ const App = () => {
       if (ctx) {
         // Keep canvas size 1:1 with video source for max resolution
         if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-             canvas.width = video.videoWidth;
-             canvas.height = video.videoHeight;
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
         }
-        
+
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
+
         if (window.jsQR) {
           const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
             inversionAttempts: "attemptBoth",
@@ -456,22 +456,22 @@ const App = () => {
 
 
     let processedData = normalizedData;
-    
+
     // Auto-detect LZString compression
     if (window.LZString) {
       try {
         const decompressed = window.LZString.decompressFromBase64(normalizedData);
         // If decompression returns a value (not null/empty)
         if (decompressed) {
-            // Heuristic check:
-            // 1. If 'useLZ' is manually checked, trust it.
-            // 2. Or if raw data has NO spaces (typical for base64) AND decompressed data HAS spaces (typical for FRC format).
-            const rawHasSpaces = normalizedData.includes(' ');
-            const decompressedHasSpaces = decompressed.includes(' ');
+          // Heuristic check:
+          // 1. If 'useLZ' is manually checked, trust it.
+          // 2. Or if raw data has NO spaces (typical for base64) AND decompressed data HAS spaces (typical for FRC format).
+          const rawHasSpaces = normalizedData.includes(' ');
+          const decompressedHasSpaces = decompressed.includes(' ');
 
-            if (useLZ || (!rawHasSpaces && decompressedHasSpaces)) {
-                processedData = decompressed;
-            }
+          if (useLZ || (!rawHasSpaces && decompressedHasSpaces)) {
+            processedData = decompressed;
+          }
         }
       } catch (e) {
         console.warn("Decompression attempt failed", e);
@@ -479,40 +479,40 @@ const App = () => {
     }
 
     const parsed = parseFrcData(processedData);
-    
+
     // Check for duplicate in history - silently skip if exists
     const existingRecord = isDuplicateRecord(parsed, processedData);
     if (existingRecord) {
-      const matchInfo = parsed.matchNumber && parsed.teamNumber 
-        ? `${parsed.matchLevel || ''}${parsed.matchNumber} / Team ${parsed.teamNumber}` 
+      const matchInfo = parsed.matchNumber && parsed.teamNumber
+        ? `${parsed.matchLevel || ''}${parsed.matchNumber} / Team ${parsed.teamNumber}`
         : '此 QR Code';
       showToast(`⚠️ 重複資料已略過: ${matchInfo}`, "warning");
       return;
     }
-    
+
     showToast("掃描成功！ (Success)", "success");
-    
+
     if (videoRef.current) {
-        videoRef.current.classList.add('flash-effect');
-        setTimeout(() => videoRef.current?.classList.remove('flash-effect'), 300);
+      videoRef.current.classList.add('flash-effect');
+      setTimeout(() => videoRef.current?.classList.remove('flash-effect'), 300);
     }
-        
+
     let preview = "";
     // Only format if we have valid columns. 
     // Checking matchNumber and teamNumber ensures we don't display garbage for raw strings.
     if (parsed.scouterName && parsed.matchNumber && parsed.teamNumber) {
-        preview = `${parsed.scouterName} | ${parsed.matchLevel}${parsed.matchNumber} | T:${parsed.teamNumber}`;
-        if (parsed.comments) {
-             const shortComment = parsed.comments.length > 8 ? parsed.comments.substring(0, 8) + '..' : parsed.comments;
-             preview += ` | 💬 ${shortComment}`;
-        }
+      preview = `${parsed.scouterName} | ${parsed.matchLevel}${parsed.matchNumber} | T:${parsed.teamNumber}`;
+      if (parsed.comments) {
+        const shortComment = parsed.comments.length > 8 ? parsed.comments.substring(0, 8) + '..' : parsed.comments;
+        preview += ` | 💬 ${shortComment}`;
+      }
     } else {
-        preview = processedData.length > 50 ? processedData.substring(0, 50) + '...' : processedData;
+      preview = processedData.length > 50 ? processedData.substring(0, 50) + '...' : processedData;
     }
 
     const newRecord: ScanRecord = {
       id: now,
-      timestamp: new Date().toLocaleTimeString(), 
+      timestamp: new Date().toLocaleTimeString(),
       raw: processedData,
       parsed: parsed,
       displayData: preview,
@@ -520,17 +520,17 @@ const App = () => {
     };
 
     setScanHistory(prev => [newRecord, ...prev]);
-    
+
     uploadData(newRecord);
   }, [useLZ, scriptUrl, scanHistory]);
 
   const updateComment = (id: number, newComment: string) => {
     setScanHistory(prev => prev.map(r => {
-        if (r.id === id) {
-            const updatedParsed = r.parsed ? { ...r.parsed, comments: newComment } : undefined;
-            return { ...r, parsed: updatedParsed };
-        }
-        return r;
+      if (r.id === id) {
+        const updatedParsed = r.parsed ? { ...r.parsed, comments: newComment } : undefined;
+        return { ...r, parsed: updatedParsed };
+      }
+      return r;
     }));
   };
 
@@ -542,15 +542,15 @@ const App = () => {
     // 1. Prepare Columns based on current state (parsed or raw)
     let cols: string[] = [];
     if (record.parsed) {
-        cols = FRC_COLUMNS.map(key => {
-            const val = record.parsed![key];
-            return val === undefined ? "" : val; 
-        });
+      cols = FRC_COLUMNS.map(key => {
+        const val = record.parsed![key];
+        return val === undefined ? "" : val;
+      });
     } else {
-        const rawCols = record.raw.trim().split(/\s+/);
-        cols = fixSplitData(rawCols);
+      const rawCols = record.raw.trim().split(/\s+/);
+      cols = fixSplitData(rawCols);
     }
-    
+
     // 2. Reconstruct "raw" to reflect edits for the sheet's raw column
     const simulatedRaw = cols.join(' ');
 
@@ -563,16 +563,16 @@ const App = () => {
     // Encode JSON string to UTF-8 safe Base64
     const jsonString = JSON.stringify(cols);
     const base64Json = btoa(unescape(encodeURIComponent(jsonString)));
-    
+
     params.append('jsonCols', base64Json);
-    
+
     try {
       await fetch(scriptUrl, {
         method: 'POST',
         body: params,
-        mode: 'no-cors' 
+        mode: 'no-cors'
       });
-      
+
       updateRecordStatus(record.id, 'sent');
     } catch (e: any) {
       console.error("Upload failed", e);
@@ -587,9 +587,9 @@ const App = () => {
   const retryPending = () => {
     const pending = scanHistory.filter(r => r.status === 'pending' || r.status === 'error');
     if (pending.length === 0) return;
-    
+
     if (confirm(`Retry uploading ${pending.length} records?`)) {
-        pending.forEach(r => uploadData(r));
+      pending.forEach(r => uploadData(r));
     }
   };
 
@@ -611,16 +611,16 @@ const App = () => {
       <header>
         <h1>FRC Scout Scanner</h1>
         <div className="subtitle">Offline QR Scanner & Uploader</div>
-        <div style={{marginTop: '12px'}}>
-           <a 
-             href={SCOUTING_PASS_URL}
-             target="_blank" 
-             rel="noreferrer"
-             className="btn btn-secondary btn-sm"
-             style={{textDecoration: 'none', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px'}}
-           >
-             🔗 開啟 Scouting PASS (QR 產生器)
-           </a>
+        <div style={{ marginTop: '12px' }}>
+          <a
+            href={SCOUTING_PASS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-secondary btn-sm"
+            style={{ textDecoration: 'none', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            🔗 開啟 Scouting PASS (QR 產生器)
+          </a>
         </div>
       </header>
 
@@ -632,77 +632,77 @@ const App = () => {
             {showSettings ? '隱藏' : '展開'}
           </button>
         </div>
-        
+
         {showSettings && (
           <div>
             <div className="input-group">
               <label>Google Apps Script URL</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder={DEFAULT_SCRIPT_URL}
-                value={scriptUrl} 
-                onChange={e => setScriptUrl(e.target.value)} 
+                value={scriptUrl}
+                onChange={e => setScriptUrl(e.target.value)}
               />
-              <div style={{fontSize: '0.8rem', color: '#666', marginTop: '4px'}}>
-                 ⚠️ 請確保 Script 部署權限為 "Anyone" (任何人)
+              <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                ⚠️ 請確保 Script 部署權限為 "Anyone" (任何人)
               </div>
             </div>
-            
+
             <div className="input-group checkbox-wrapper">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="lzCheck"
                 checked={useLZ}
                 onChange={e => setUseLZ(e.target.checked)}
               />
-              <label htmlFor="lzCheck" style={{marginBottom: 0}}>啟用 LZ-String 解壓縮</label>
+              <label htmlFor="lzCheck" style={{ marginBottom: 0 }}>啟用 LZ-String 解壓縮</label>
             </div>
 
-            <div style={{display: 'flex', gap: '10px', marginBottom: '16px'}}>
-                <button className="btn btn-primary" style={{flex: 1}} onClick={saveSettings}>
-                  儲存設定
-                </button>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveSettings}>
+                儲存設定
+              </button>
             </div>
 
-            <hr style={{border: '0', borderTop: '1px solid #eee', margin: '16px 0'}} />
-            
+            <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '16px 0' }} />
+
             <div className="input-group">
-                <button 
-                    className="btn btn-secondary btn-sm" 
-                    style={{width: '100%'}} 
-                    onClick={() => setShowScriptCode(!showScriptCode)}
-                >
-                    {showScriptCode ? '隱藏' : '顯示'} FRC 專用後端程式碼
-                </button>
-                
-                {showScriptCode && (
-                    <div style={{marginTop: '8px', position: 'relative'}}>
-                        <textarea 
-                            readOnly 
-                            value={GAS_SCRIPT_TEMPLATE} 
-                            style={{
-                                width: '100%', 
-                                height: '200px', 
-                                fontSize: '12px', 
-                                fontFamily: 'monospace', 
-                                background: '#f5f5f5', 
-                                border: '2px solid #eab308', 
-                                borderRadius: '4px',
-                                padding: '8px'
-                            }}
-                        />
-                        <button 
-                            className="btn btn-primary btn-sm"
-                            style={{position: 'absolute', top: '10px', right: '10px'}}
-                            onClick={copyScriptToClipboard}
-                        >
-                            複製
-                        </button>
-                        <div style={{fontSize: '0.85rem', color: '#d97706', marginTop: '8px', fontWeight: 'bold'}}>
-                            ⚠️ 重要：這次更新採用 Base64 編碼來解決亂碼問題，<br/>請務必更新 Google Apps Script 並重新部署！
-                        </div>
-                    </div>
-                )}
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ width: '100%' }}
+                onClick={() => setShowScriptCode(!showScriptCode)}
+              >
+                {showScriptCode ? '隱藏' : '顯示'} FRC 專用後端程式碼
+              </button>
+
+              {showScriptCode && (
+                <div style={{ marginTop: '8px', position: 'relative' }}>
+                  <textarea
+                    readOnly
+                    value={GAS_SCRIPT_TEMPLATE}
+                    style={{
+                      width: '100%',
+                      height: '200px',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                      background: '#f5f5f5',
+                      border: '2px solid #eab308',
+                      borderRadius: '4px',
+                      padding: '8px'
+                    }}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ position: 'absolute', top: '10px', right: '10px' }}
+                    onClick={copyScriptToClipboard}
+                  >
+                    複製
+                  </button>
+                  <div style={{ fontSize: '0.85rem', color: '#d97706', marginTop: '8px', fontWeight: 'bold' }}>
+                    ⚠️ 重要：這次更新採用 Base64 編碼來解決亂碼問題，<br />請務必更新 Google Apps Script 並重新部署！
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -713,102 +713,102 @@ const App = () => {
         <div className="card-header">
           <h2 className="card-title">📷 掃描器</h2>
         </div>
-        
+
         <div className="input-group">
-            <select value={selectedCamera} onChange={e => setSelectedCamera(e.target.value)}>
-                {cameras.map(c => (
-                    <option key={c.deviceId} value={c.deviceId}>
-                        {c.label || `Camera ${c.deviceId.slice(0,5)}...`}
-                    </option>
-                ))}
-            </select>
+          <select value={selectedCamera} onChange={e => setSelectedCamera(e.target.value)}>
+            {cameras.map(c => (
+              <option key={c.deviceId} value={c.deviceId}>
+                {c.label || `Camera ${c.deviceId.slice(0, 5)}...`}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="camera-container">
-            <video ref={videoRef} playsInline muted></video>
-            <canvas ref={canvasRef} hidden></canvas>
-            {isScanning && <div className="scan-overlay"></div>}
-            {!isScanning && <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white'}}>相機已暫停</div>}
+          <video ref={videoRef} playsInline muted></video>
+          <canvas ref={canvasRef} hidden></canvas>
+          {isScanning && <div className="scan-overlay"></div>}
+          {!isScanning && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white' }}>相機已暫停</div>}
         </div>
 
         {hasZoom && isScanning && (
           <div className="zoom-control">
-             <label htmlFor="zoomSlider">Zoom: {zoom.toFixed(1)}x</label>
-             <input 
-               id="zoomSlider"
-               type="range" 
-               min={zoomRange.min} 
-               max={zoomRange.max} 
-               step="0.1" 
-               value={zoom} 
-               onChange={handleZoomChange} 
-             />
+            <label htmlFor="zoomSlider">Zoom: {zoom.toFixed(1)}x</label>
+            <input
+              id="zoomSlider"
+              type="range"
+              min={zoomRange.min}
+              max={zoomRange.max}
+              step="0.1"
+              value={zoom}
+              onChange={handleZoomChange}
+            />
           </div>
         )}
 
-        <div className="camera-controls" style={{marginTop: '12px'}}>
-            {!isScanning ? (
-                <button className="btn btn-primary" onClick={startCamera}>▶ 開始掃描</button>
-            ) : (
-                <button className="btn btn-danger" onClick={stopCamera}>⏹ 停止</button>
-            )}
+        <div className="camera-controls" style={{ marginTop: '12px' }}>
+          {!isScanning ? (
+            <button className="btn btn-primary" onClick={startCamera}>▶ 開始掃描</button>
+          ) : (
+            <button className="btn btn-danger" onClick={stopCamera}>⏹ 停止</button>
+          )}
         </div>
 
-        {lastScanRef.current.text && (
-            <div className="last-scan">
-                <strong>最近一次有效掃描：</strong><br/>
-                {(() => {
-                    const currentRecord = scanHistory.length > 0 ? scanHistory[0] : null;
-                    
-                    if (!currentRecord || !currentRecord.parsed) return <div style={{marginTop: '4px'}}>{lastScanRef.current.text}</div>;
+        {scanHistory.length > 0 && (
+          <div className="last-scan">
+            <strong>最近一次有效掃描：</strong><br />
+            {(() => {
+              const currentRecord = scanHistory.length > 0 ? scanHistory[0] : null;
 
-                    return (
-                     <div>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px'}}>
-                            <span style={{color: '#2563eb', fontWeight: 'bold'}}>
-                              {currentRecord.parsed.scouterName || 'Unknown'} 
-                            </span>
-                            <span>|</span>
-                            <span>{currentRecord.parsed.eventCode}</span>
-                            <span>|</span>
-                            <span>{currentRecord.parsed.matchLevel}{currentRecord.parsed.matchNumber}</span>
-                             <span className={`status-badge status-${currentRecord.status === 'sending' ? 'pending' : currentRecord.status}`}>
-                                {currentRecord.status === 'sent' ? '已送出' : currentRecord.status}
-                            </span>
-                        </div>
+              if (!currentRecord || !currentRecord.parsed) return <div style={{ marginTop: '4px' }}>{currentRecord?.raw || ''}</div>;
 
-                        <div style={{marginTop: '6px', padding: '8px', background: '#fff', borderRadius: '4px', border: '1px solid #e2e8f0'}}>
-                            <label style={{fontSize: '0.75rem', color: '#666', fontWeight: 'bold', marginBottom: '4px', display:'block'}}>
-                                評論 (Comments) - 可編輯:
-                            </label>
-                            <textarea
-                                value={currentRecord.parsed.comments || ''}
-                                onChange={(e) => updateComment(currentRecord.id, e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    minHeight: '60px',
-                                    padding: '8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #cbd5e1',
-                                    fontFamily: 'inherit',
-                                    fontSize: '0.95rem'
-                                }}
-                                placeholder="輸入評論..."
-                            />
-                            <div style={{textAlign: 'right', marginTop: '4px'}}>
-                                <button 
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => uploadData(currentRecord)}
-                                    disabled={currentRecord.status === 'sending'}
-                                >
-                                    {currentRecord.status === 'sent' ? '更新並重傳' : '傳送'}
-                                </button>
-                            </div>
-                        </div>
-                     </div>
-                    );
-                })()}
-            </div>
+              return (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    <span style={{ color: '#2563eb', fontWeight: 'bold' }}>
+                      {currentRecord.parsed.scouterName || 'Unknown'}
+                    </span>
+                    <span>|</span>
+                    <span>{currentRecord.parsed.eventCode}</span>
+                    <span>|</span>
+                    <span>{currentRecord.parsed.matchLevel}{currentRecord.parsed.matchNumber}</span>
+                    <span className={`status-badge status-${currentRecord.status === 'sending' ? 'pending' : currentRecord.status}`}>
+                      {currentRecord.status === 'sent' ? '已送出' : currentRecord.status}
+                    </span>
+                  </div>
+
+                  <div style={{ marginTop: '6px', padding: '8px', background: '#fff', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'bold', marginBottom: '4px', display: 'block' }}>
+                      評論 (Comments) - 可編輯:
+                    </label>
+                    <textarea
+                      value={currentRecord.parsed.comments || ''}
+                      onChange={(e) => updateComment(currentRecord.id, e.target.value)}
+                      style={{
+                        width: '100%',
+                        minHeight: '60px',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #cbd5e1',
+                        fontFamily: 'inherit',
+                        fontSize: '0.95rem'
+                      }}
+                      placeholder="輸入評論..."
+                    />
+                    <div style={{ textAlign: 'right', marginTop: '4px' }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => uploadData(currentRecord)}
+                        disabled={currentRecord.status === 'sending'}
+                      >
+                        {currentRecord.status === 'sent' ? '更新並重傳' : '傳送'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         )}
       </div>
 
@@ -817,74 +817,74 @@ const App = () => {
         <div className="card-header">
           <h2 className="card-title">📊 數據隊列</h2>
           <div className="stats-bar">
-             <span style={{color: 'var(--warning)'}}>待傳: {scanHistory.filter(r => r.status === 'pending' || r.status === 'error').length}</span>
-             <span style={{color: 'var(--success)'}}>已傳: {scanHistory.filter(r => r.status === 'sent').length}</span>
+            <span style={{ color: 'var(--warning)' }}>待傳: {scanHistory.filter(r => r.status === 'pending' || r.status === 'error').length}</span>
+            <span style={{ color: 'var(--success)' }}>已傳: {scanHistory.filter(r => r.status === 'sent').length}</span>
           </div>
         </div>
 
-        <div style={{display: 'flex', gap: '10px', marginBottom: '16px'}}>
-            <button className="btn btn-primary btn-sm" onClick={retryPending}>重試失敗項目</button>
-            <button className="btn btn-outline btn-sm" onClick={clearHistory}>清空紀錄</button>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+          <button className="btn btn-primary btn-sm" onClick={retryPending}>重試失敗項目</button>
+          <button className="btn btn-outline btn-sm" onClick={clearHistory}>清空紀錄</button>
         </div>
 
         <div className="data-list">
-            {scanHistory.length === 0 && <div style={{textAlign: 'center', color: '#aaa', padding: '20px'}}>暫無資料</div>}
-            {scanHistory.map(record => (
-                <div key={record.id} className="data-item">
-                    <div className="data-info">
-                        <span className="data-preview">{record.displayData}</span>
-                        <span className="data-time">{record.timestamp}</span>
-                        {record.errorMsg && <span style={{color: 'red', fontSize: '0.75rem'}}>{record.errorMsg}</span>}
-                    </div>
-                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px'}}>
-                        <span className={`status-badge status-${record.status === 'sending' ? 'pending' : record.status}`}>
-                            {record.status === 'sent' && '已送出'}
-                            {record.status === 'pending' && '待送出'}
-                            {record.status === 'sending' && '傳送中...'}
-                            {record.status === 'error' && '失敗'}
-                        </span>
-                        <button className="btn btn-outline btn-sm" onClick={() => setViewingRecord(record)}>
-                            🔍 詳細
-                        </button>
-                    </div>
-                </div>
-            ))}
+          {scanHistory.length === 0 && <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>暫無資料</div>}
+          {scanHistory.map(record => (
+            <div key={record.id} className="data-item">
+              <div className="data-info">
+                <span className="data-preview">{record.displayData}</span>
+                <span className="data-time">{record.timestamp}</span>
+                {record.errorMsg && <span style={{ color: 'red', fontSize: '0.75rem' }}>{record.errorMsg}</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                <span className={`status-badge status-${record.status === 'sending' ? 'pending' : record.status}`}>
+                  {record.status === 'sent' && '已送出'}
+                  {record.status === 'pending' && '待送出'}
+                  {record.status === 'sending' && '傳送中...'}
+                  {record.status === 'error' && '失敗'}
+                </span>
+                <button className="btn btn-outline btn-sm" onClick={() => setViewingRecord(record)}>
+                  🔍 詳細
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Detail Modal */}
       {viewingRecord && (
         <div className="modal-overlay" onClick={() => setViewingRecord(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>詳細資料 (Details)</h3>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setViewingRecord(null)}>✕</button>
-                </div>
-                
-                <div className="modal-body">
-                    {viewingRecord.parsed ? (
-                        <div className="detail-table">
-                            {Object.entries(viewingRecord.parsed).map(([key, value]) => (
-                                <div key={key} className="detail-row">
-                                    <span className="detail-label">{key}</span>
-                                    <span className="detail-value">{value}</span>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div>
-                            <h4>Raw Data:</h4>
-                            <pre style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#f1f5f9', padding: '8px', borderRadius: '4px'}}>
-                                {viewingRecord.raw}
-                            </pre>
-                        </div>
-                    )}
-                </div>
-                
-                <div className="modal-footer">
-                     <button className="btn btn-secondary" onClick={() => setViewingRecord(null)}>關閉</button>
-                </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>詳細資料 (Details)</h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setViewingRecord(null)}>✕</button>
             </div>
+
+            <div className="modal-body">
+              {viewingRecord.parsed ? (
+                <div className="detail-table">
+                  {Object.entries(viewingRecord.parsed).map(([key, value]) => (
+                    <div key={key} className="detail-row">
+                      <span className="detail-label">{key}</span>
+                      <span className="detail-value">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <h4>Raw Data:</h4>
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#f1f5f9', padding: '8px', borderRadius: '4px' }}>
+                    {viewingRecord.raw}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setViewingRecord(null)}>關閉</button>
+            </div>
+          </div>
         </div>
       )}
 
