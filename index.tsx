@@ -29,7 +29,6 @@ interface Notification {
 }
 
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvZZdYPFmvdZLgx1lM0VZru9S7xgRaViI3KOdljZDVqL05aBIgBJ84Pnb6WVhD5oky/exec';
-const DUP_SCAN_INTERVAL = 2000; // 2 seconds cooldown for same data
 const SCOUTING_PASS_URL = 'https://frc-ten.vercel.app/';
 
 // FRC 2025 Reefscape Columns Definition
@@ -241,10 +240,6 @@ const App = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const requestRef = useRef<number>(0);
-  
-  // Anti-duplicate Refs
-  const lastScanRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
-  const lastWarningRef = useRef<number>(0);
   const isScanningRef = useRef(false);
 
   // --- Initialization ---
@@ -459,16 +454,6 @@ const App = () => {
     const now = Date.now();
     const normalizedData = data.trim().replace(/(\r\n|\n|\r)/gm, "");
 
-    if (normalizedData === lastScanRef.current.text && (now - lastScanRef.current.time) < DUP_SCAN_INTERVAL) {
-      if (now - lastWarningRef.current > 1000) {
-        showToast("重複掃描 (Duplicate)", "warning");
-        lastWarningRef.current = now;
-      }
-      return;
-    }
-
-    lastScanRef.current = { text: normalizedData, time: now };
-
 
     let processedData = normalizedData;
     
@@ -494,28 +479,15 @@ const App = () => {
     }
 
     const parsed = parseFrcData(processedData);
-    // Check for duplicate in history
+    
+    // Check for duplicate in history - silently skip if exists
     const existingRecord = isDuplicateRecord(parsed, processedData);
     if (existingRecord) {
       const matchInfo = parsed.matchNumber && parsed.teamNumber 
         ? `${parsed.matchLevel || ''}${parsed.matchNumber} / Team ${parsed.teamNumber}` 
         : '此 QR Code';
-      
-      showToast(`⚠️ 重複資料: ${matchInfo}`, "warning");
-      
-      // Ask user confirmation
-      const confirmAdd = confirm(
-        `⚠️ 此筆資料已存在！\n\n` +
-        `比賽: ${parsed.matchLevel || ''}${parsed.matchNumber || 'N/A'}\n` +
-        `隊伍: ${parsed.teamNumber || 'N/A'}\n` +
-        `記錄員: ${parsed.scouterName || 'N/A'}\n` +
-        `原掃描時間: ${existingRecord.timestamp}\n\n` +
-        `確定要重複新增嗎？`
-      );
-      
-      if (!confirmAdd) {
-        return;
-      }
+      showToast(`⚠️ 重複資料已略過: ${matchInfo}`, "warning");
+      return;
     }
     
     showToast("掃描成功！ (Success)", "success");
@@ -624,7 +596,6 @@ const App = () => {
   const clearHistory = () => {
     if (confirm("Clear all history? This cannot be undone.")) {
       setScanHistory([]);
-      lastScanRef.current = { text: '', time: 0 };
     }
   };
 
