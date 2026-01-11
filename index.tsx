@@ -31,57 +31,26 @@ interface Notification {
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvZZdYPFmvdZLgx1lM0VZru9S7xgRaViI3KOdljZDVqL05aBIgBJ84Pnb6WVhD5oky/exec';
 const SCOUTING_PASS_URL = 'https://frc-ten.vercel.app/';
 
-// FRC 2025 Reefscape Columns Definition
+// FRC 2026 REBUILT Columns Definition
 const FRC_COLUMNS = [
   "scouterName", "eventCode", "matchLevel", "matchNumber", "robotPosition", "teamNumber",
-  "humanPlayerPresent", "autoLeave", "autoCoralL1Success", "autoCoralL1Fail",
-  "autoCoralL2Success", "autoCoralL2Fail", "autoCoralL3Success", "autoCoralL3Fail",
-  "autoCoralL4Success", "autoCoralL4Fail", "autoProcessorSuccess", "autoProcessorFail",
-  "autoNetSuccess", "autoNetFail", "teleCoralL1Success", "teleCoralL1Fail",
-  "teleCoralL2Success", "teleCoralL2Fail", "teleCoralL3Success", "teleCoralL3Fail",
-  "teleCoralL4Success", "teleCoralL4Fail", "teleProcessorSuccess", "teleProcessorFail",
-  "teleNetSuccess", "teleNetFail", "telePickupSource", "teleOpponentProcessor",
-  "teleBargeTime", "teleEndGame", "defenseRating", "driverRating", "speedRating",
-  "defendedBy", "coopBonus", "algaeRemaning", "robotDied", "tippedOver",
-  "droppedCoral", "droppedAlgae", "comments"
+  "autoFuel", "autoTower",
+  "teleFuel", "teleTower",
+  "defenseRating", "driverRating", "speedRating",
+  "comments"
 ];
 
 // Helper to fix common split issues and align columns
 const fixSplitData = (parts: string[]): string[] => {
-  let newParts: string[] = [];
-
-  // 1. Merge "Shallow Cage" and "Deep Cage"
-  for (let i = 0; i < parts.length; i++) {
-    const curr = parts[i];
-    const next = parts[i + 1];
-    if ((curr === 'Shallow' || curr === 'Deep') && next === 'Cage') {
-      newParts.push(`${curr} ${next}`);
-      i++;
-    } else {
-      newParts.push(curr);
-    }
-  }
-
-  // 2. Fix Offset: Check if teleEndGame (index 35) is shifted by an extra column
-  const endIndex = 35; // index of teleEndGame
-  if (newParts.length > endIndex + 1) {
-    const validEndGames = ['None', 'Park', 'Shallow Cage', 'Deep Cage'];
-    const valAt35 = newParts[endIndex];
-    const valAt36 = newParts[endIndex + 1];
-
-    if (!validEndGames.includes(valAt35) && validEndGames.includes(valAt36)) {
-      // Shift detected! Remove the extra column at index 34
-      newParts.splice(34, 1);
-    }
-  }
-
-  return newParts;
+  // 2026: Currently no multi-word fields anticipated if we use "Level1", "Level2", etc.
+  // Kept structure for future compatibility or legacy fixes if needed.
+  return parts;
 };
 
 // Helper to parse space-separated data
 const parseFrcData = (raw: string): Record<string, string> => {
   let parts = raw.trim().split(/\s+/);
-
+  
   // Apply fix for split strings and offsets
   parts = fixSplitData(parts);
 
@@ -100,10 +69,11 @@ const parseFrcData = (raw: string): Record<string, string> => {
   return data;
 };
 
-// Updated GAS Script for FRC 2025 Reefscape format (Space Separated)
+// Updated GAS Script for FRC 2026 REBUILT format
 const GAS_SCRIPT_TEMPLATE = `// FRC Scout Data Handler
 // 更新時間：${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
-// 包含: Base64 解碼 (完美解決中文亂碼/Unicode問題)、"Shallow Cage" 合併、欄位位移自動修復
+// 適用於 2026 REBUILT Game
+// 包含: Base64 解碼
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -120,59 +90,16 @@ function doPost(e) {
     var cols = [];
     if (jsonCols) {
       try {
-        // 優先嘗試 Base64 解碼 (確保 UTF-8 中文正確)
         var decoded = Utilities.newBlob(Utilities.base64Decode(jsonCols), 'application/json').getDataAsString();
         cols = JSON.parse(decoded);
       } catch (err) {
-        // 如果 Base64 解碼失敗，嘗試直接 JSON 解析 (相容舊版)
-        try {
-          cols = JSON.parse(jsonCols);
-        } catch (e2) {
-          cols = raw ? raw.trim().split(/\\s+/) : [];
-        }
+        cols = raw ? raw.trim().split(/\\s+/) : [];
       }
     } else {
       cols = raw ? raw.trim().split(/\\s+/) : [];
     }
 
-    // 1.5 修復資料分割與位移 (Fix Split & Shift)
-    function fixFrcSplit(arr) {
-      var res = [];
-      // 1. Merge Cage
-      for (var i = 0; i < arr.length; i++) {
-        var curr = arr[i];
-        var next = arr[i+1];
-        if ((curr === 'Shallow' || curr === 'Deep') && next === 'Cage') {
-          res.push(curr + ' ' + next);
-          i++; 
-        } else {
-          res.push(curr);
-        }
-      }
-      
-      // 2. Alignment Fix (Remove extra col at 34 if EndGame shifted)
-      var endIndex = 35; // teleEndGame index
-      if (res.length > endIndex + 1) {
-         var validEndGames = ['None', 'Park', 'Shallow Cage', 'Deep Cage'];
-         var valAt35 = res[endIndex];
-         var valAt36 = res[endIndex + 1];
-         
-         var is35Valid = validEndGames.indexOf(valAt35) > -1;
-         var is36Valid = validEndGames.indexOf(valAt36) > -1;
-         
-         if (!is35Valid && is36Valid) {
-            // Shift detected! Remove index 34
-            res.splice(34, 1);
-         }
-      }
-      return res;
-    }
-
     var frcHeaders = ${JSON.stringify(FRC_COLUMNS)};
-    
-    if (cols.length > frcHeaders.length) {
-       cols = fixFrcSplit(cols);
-    }
     
     // 2. 處理最後欄位溢出 (Comments)
     if (cols.length > frcHeaders.length) {
