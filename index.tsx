@@ -31,36 +31,62 @@ interface Notification {
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvZZdYPFmvdZLgx1lM0VZru9S7xgRaViI3KOdljZDVqL05aBIgBJ84Pnb6WVhD5oky/exec';
 const SCOUTING_PASS_URL = 'https://frc-ten.vercel.app/';
 
-// FRC 2026 REBUILT Columns Definition
+// FRC 2026 REBUILT Columns Definition (Matched to frc-ten.vercel.app)
 const FRC_COLUMNS = [
   "scouterName", "eventCode", "matchLevel", "matchNumber", "robotPosition", "teamNumber",
-  "autoFuel", "autoTower",
+  "autoLeave", "autoFuel", "autoTower",
   "teleFuel", "teleTower",
   "defenseRating", "driverRating", "speedRating",
+  "defendedBy", "robotDied", "tippedOver",
   "comments"
 ];
 
 // Helper to fix common split issues and align columns
 const fixSplitData = (parts: string[]): string[] => {
-  // 2026: Currently no multi-word fields anticipated if we use "Level1", "Level2", etc.
-  // Kept structure for future compatibility or legacy fixes if needed.
-  return parts;
+  let newParts: string[] = [];
+  
+  // 2026 Logic: Handle "Level 2" or "Level 3" if split by spaces
+  for (let i = 0; i < parts.length; i++) {
+    const curr = parts[i];
+    const next = parts[i + 1];
+    
+    // Check for "Level X" split
+    if (curr === 'Level' && next && /^\d+$/.test(next)) {
+      newParts.push(`${curr} ${next}`);
+      i++;
+    } else {
+      newParts.push(curr);
+    }
+  }
+  return newParts;
 };
 
-// Helper to parse space-separated data
+// Helper to parse data (supports TSV and Space-Separated)
 const parseFrcData = (raw: string): Record<string, string> => {
-  let parts = raw.trim().split(/\s+/);
-  
-  // Apply fix for split strings and offsets
-  parts = fixSplitData(parts);
+  const trimmed = raw.trim();
+  let parts: string[] = [];
+
+  // Detect delimiter: simple heuristic, if it has tabs, assume TSV
+  if (trimmed.includes('\t')) {
+    parts = trimmed.split('\t');
+  } else {
+    parts = trimmed.split(/\s+/);
+    // Only apply fixSplitData if we split by spaces (TSV shouldn't split 'Level 2')
+    parts = fixSplitData(parts);
+  }
 
   const data: Record<string, string> = {};
 
   FRC_COLUMNS.forEach((col, index) => {
     if (index < parts.length) {
-      // Special handling for the last column (comments) to include all remaining text
       if (index === FRC_COLUMNS.length - 1) {
-        data[col] = parts.slice(index).join(' ');
+        // Last column (comments) - join remaining if space-separated, or just take last if TSV
+        // For TSV, comments is just one field. For space-split, it might be fragmented.
+        if (trimmed.includes('\t')) {
+           data[col] = parts[index] || "";
+        } else {
+           data[col] = parts.slice(index).join(' ');
+        }
       } else {
         data[col] = parts[index];
       }
@@ -99,7 +125,27 @@ function doPost(e) {
       cols = raw ? raw.trim().split(/\\s+/) : [];
     }
 
+    // 1.5 Fix Split (Handle "Level X")
+    function fixFrcSplit(arr) {
+      var res = [];
+      for (var i = 0; i < arr.length; i++) {
+        var curr = arr[i];
+        var next = arr[i+1];
+        if (curr === 'Level' && next && /^\\d+$/.test(next)) {
+          res.push(curr + ' ' + next);
+          i++; 
+        } else {
+          res.push(curr);
+        }
+      }
+      return res;
+    }
+
     var frcHeaders = ${JSON.stringify(FRC_COLUMNS)};
+
+    if (cols.length > frcHeaders.length) {
+       cols = fixFrcSplit(cols);
+    }
     
     // 2. 處理最後欄位溢出 (Comments)
     if (cols.length > frcHeaders.length) {
