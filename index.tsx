@@ -636,47 +636,6 @@ const App = () => {
                 儲存設定
               </button>
             </div>
-
-            <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '16px 0' }} />
-
-            <div className="input-group">
-              <button
-                className="btn btn-secondary btn-sm"
-                style={{ width: '100%' }}
-                onClick={() => setShowScriptCode(!showScriptCode)}
-              >
-                {showScriptCode ? '隱藏' : '顯示'} FRC 專用後端程式碼
-              </button>
-
-              {showScriptCode && (
-                <div style={{ marginTop: '8px', position: 'relative' }}>
-                  <textarea
-                    readOnly
-                    value={GAS_SCRIPT_TEMPLATE}
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      fontSize: '12px',
-                      fontFamily: 'monospace',
-                      background: '#f5f5f5',
-                      border: '2px solid #eab308',
-                      borderRadius: '4px',
-                      padding: '8px'
-                    }}
-                  />
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ position: 'absolute', top: '10px', right: '10px' }}
-                    onClick={copyScriptToClipboard}
-                  >
-                    複製
-                  </button>
-                  <div style={{ fontSize: '0.85rem', color: '#d97706', marginTop: '8px', fontWeight: 'bold' }}>
-                    ⚠️ 重要：這次更新採用 Base64 編碼來解決亂碼問題，<br />請務必更新 Google Apps Script 並重新部署！
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
