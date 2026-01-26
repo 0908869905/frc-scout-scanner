@@ -130,7 +130,7 @@ export async function uploadToSheets(
 export async function uploadHistoryItem(
   item: ScanHistoryItem
 ): Promise<UploadStatus> {
-  return uploadToSheets(item.type, item.data);
+  return uploadToSheets(item.qrType, item.data);
 }
 
 /**
@@ -160,14 +160,14 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   }
 
   // 過濾掉 unknown 類型
-  const validItems = items.filter(item => item.type !== 'unknown');
+  const validItems = items.filter(item => item.qrType !== 'unknown');
   const invalidCount = items.length - validItems.length;
 
   // 嘗試使用批次 API
   const payload: BatchUploadPayload = {
     type: 'batch',
     data: validItems.map(item => ({
-      type: item.type,
+      type: item.qrType,  // 使用 qrType 而不是 type
       data: {
         ...item.data,
         timestamp: item.data.timestamp || item.scanTime || new Date().toISOString(),
