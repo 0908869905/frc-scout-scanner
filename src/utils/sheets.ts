@@ -73,28 +73,30 @@ export async function uploadToSheets(
   };
 
   try {
-    // 使用 text/plain 避免 CORS preflight
+    console.log('[Upload] Sending to:', settings.sheetsApiUrl);
+    console.log('[Upload] Payload:', JSON.stringify(payload));
+
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'text/plain',
-      },
+      redirect: 'follow',
       body: JSON.stringify(payload),
     });
 
-    // 嘗試解析回應
+    console.log('[Upload] Response status:', response.status);
+    console.log('[Upload] Response ok:', response.ok);
+
     const text = await response.text();
+    console.log('[Upload] Response text:', text);
+
     let result: AppsScriptResponse;
 
     try {
       result = JSON.parse(text);
     } catch {
-      // 如果回應不是 JSON，假設成功
-      console.log('Response:', text);
+      console.log('[Upload] Response is not JSON');
       return {
-        success: true,
-        message: '上傳完成',
+        success: false,
+        message: '回應格式錯誤: ' + text.substring(0, 100),
         timestamp: Date.now(),
       };
     }
@@ -113,7 +115,7 @@ export async function uploadToSheets(
       };
     }
   } catch (error) {
-    console.error('Upload failed:', error);
+    console.error('[Upload] Error:', error);
     return {
       success: false,
       message: `上傳失敗: ${error instanceof Error ? error.message : '網路錯誤'}`,
