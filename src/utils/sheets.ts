@@ -141,9 +141,13 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   failed: number;
   results: UploadStatus[];
 }> {
+  console.log('[UploadBatch] Starting, items count:', items.length);
+
   const settings = loadSettings();
+  console.log('[UploadBatch] API URL:', settings.sheetsApiUrl || '(empty)');
 
   if (!settings.sheetsApiUrl) {
+    console.log('[UploadBatch] No API URL configured!');
     return {
       successful: 0,
       failed: items.length,
@@ -172,23 +176,26 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   };
 
   try {
+    console.log('[UploadBatch] Sending batch request...');
+    console.log('[UploadBatch] Payload:', JSON.stringify(payload));
+
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'text/plain',
-      },
+      redirect: 'follow',
       body: JSON.stringify(payload),
     });
 
+    console.log('[UploadBatch] Response status:', response.status);
     const text = await response.text();
+    console.log('[UploadBatch] Response:', text);
+
     let result: { success: boolean };
 
     try {
       result = JSON.parse(text);
     } catch {
-      // 假設成功
-      result = { success: true };
+      console.log('[UploadBatch] Response is not JSON');
+      result = { success: false };
     }
 
     if (result.success) {
