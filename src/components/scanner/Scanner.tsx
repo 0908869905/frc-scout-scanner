@@ -117,19 +117,16 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         const scanner = new Html5QrcodeScanner(
           'qr-reader',
           {
-            fps: 60,  // 最高掃描頻率
-            qrbox: { width: 400, height: 400 },  // 更大的掃描框
+            fps: 30,  // 穩定的掃描頻率
+            qrbox: { width: 350, height: 350 },  // 較大的掃描框
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
             rememberLastUsedCamera: true,
             showTorchButtonIfSupported: true,
             formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
             videoConstraints: {
-              facingMode: { exact: 'environment' },  // 強制後置相機
-              width: { min: 1280, ideal: 3840, max: 4096 },  // 4K 解析度
-              height: { min: 720, ideal: 2160, max: 2160 },
-              aspectRatio: { ideal: 1.7777 },  // 16:9
-              focusMode: 'continuous',  // 持續自動對焦
-              exposureMode: 'continuous',  // 持續自動曝光
+              facingMode: 'environment',  // 偏好後置相機
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
             },
           },
           /* verbose= */ false
