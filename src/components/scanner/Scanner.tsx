@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5QrcodeScanType, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { decodeQR } from '../../utils/decoder';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -105,25 +105,14 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         const scanner = new Html5QrcodeScanner(
           'qr-reader',
           {
-            fps: 10,
-            // 使用動態 qrbox，覆蓋整個鏡頭範圍
-            qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-              // 使用 90% 的視窗範圍作為掃描區域
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const size = Math.floor(minEdge * 0.9);
-              return { width: size, height: size };
-            },
+            fps: 15,  // 提高掃描頻率
+            qrbox: { width: 250, height: 250 },  // 固定大小的掃描框更穩定
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
             rememberLastUsedCamera: true,
-            aspectRatio: 1.333, // 4:3 比例更適合手機相機
             showTorchButtonIfSupported: true,
-            videoConstraints: {
-              facingMode: 'environment', // 優先使用後置相機
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], // 只掃描 QR Code 提高效率
           },
-          /* verbose= */ false
+          /* verbose= */ true  // 開啟調試模式
         );
 
         scanner.render(
