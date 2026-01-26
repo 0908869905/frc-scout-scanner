@@ -31,7 +31,13 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
   const lastScannedRef = useRef<string>('');
   const lastScannedTimeRef = useRef<number>(0);
 
-  // 處理掃描成功
+  // 使用 ref 保存 callbacks，避免 useEffect 重新觸發
+  const onScanRef = useRef(onScan);
+  const onErrorRef = useRef(onError);
+  onScanRef.current = onScan;
+  onErrorRef.current = onError;
+
+  // 處理掃描成功 - 使用 ref 避免重新創建導致相機重啟
   const handleScanSuccess = useCallback((decodedText: string) => {
     // 防止 2 秒內重複掃描相同內容
     const now = Date.now();
@@ -53,11 +59,11 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
       // 更新計數器
       setScanCount(prev => prev + 1);
 
-      onScan(result);
+      onScanRef.current(result);
     } catch (e) {
-      onError(e instanceof Error ? e.message : t.scan.decodeFailed);
+      onErrorRef.current(e instanceof Error ? e.message : 'Decode failed');
     }
-  }, [onScan, onError, t.scan.decodeFailed]);
+  }, []); // 空依賴，永不重新創建
 
   // 初始化掃描器
   useEffect(() => {
@@ -132,10 +138,10 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
             // 只處理嚴重錯誤 - 錯誤訊息將在渲染時獲取
             if (errorMessage.includes('NotFoundError')) {
               setCameraError('cameraNotFound');
-              onError('Camera not found');
+              onErrorRef.current('Camera not found');
             } else if (errorMessage.includes('NotAllowedError')) {
               setCameraError('cameraPermissionDenied');
-              onError('Camera permission denied');
+              onErrorRef.current('Camera permission denied');
             }
             // 忽略一般的掃描錯誤（如無法識別的 QR Code）
           }
@@ -178,7 +184,7 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
       };
       cleanupScanner();
     };
-  }, [isActive, handleScanSuccess, onError]);
+  }, [isActive]); // 只依賴 isActive，避免不必要的重新初始化
 
   // 重試初始化
   const handleRetry = () => {

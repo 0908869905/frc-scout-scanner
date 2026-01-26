@@ -164,7 +164,7 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
       type: item.type,
       data: {
         ...item.data,
-        timestamp: item.data.timestamp || new Date(item.timestamp).toISOString(),
+        timestamp: item.data.timestamp || item.scanTime || new Date().toISOString(),
       },
     })),
   };
