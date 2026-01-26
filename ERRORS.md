@@ -1,0 +1,233 @@
+# FRC Scout Scanner - 錯誤記錄與教訓
+
+> 此檔案記錄開發過程中遇到的錯誤、根本原因和解決方案，避免重複犯錯。
+
+---
+
+## 使用指南
+
+每次遇到錯誤時，按以下格式記錄：
+
+```markdown
+### [錯誤類型] 簡短描述
+
+**日期**：YYYY-MM-DD
+**嚴重程度**：高/中/低
+**狀態**：已解決/進行中
+
+**錯誤訊息**：
+```
+完整的錯誤訊息
+```
+
+**根本原因**：
+- 原因分析
+
+**解決方案**：
+- 具體修復步驟
+
+**預防措施**：
+- 未來如何避免
+
+**相關檔案**：
+- 受影響的檔案列表
+```
+
+---
+
+## 錯誤索引
+
+| ID | 類型 | 描述 | 日期 | 狀態 |
+|----|------|------|------|------|
+| E001 | npm | Windows Git Bash 環境 npm install 無輸出 | 2026-01-26 | 已解決 |
+| E002 | React | StrictMode 雙重掛載導致相機初始化失敗 | 2026-01-26 | 已解決 |
+
+---
+
+## 錯誤記錄
+
+### [E001] Windows Git Bash 環境 npm install 無輸出
+
+**日期**：2026-01-26
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+npm install lz-string html5-qrcode
+# 命令執行無任何輸出，但套件未安裝
+# node_modules 中找不到套件
+# package.json 未更新
+```
+
+**根本原因**：
+- Windows 環境下，Git Bash 中的 npm 命令可能無法正確執行
+- Bash 工具在某些 Windows 環境下與 npm 的交互有問題
+- npm 的輸出可能被重定向或丟失
+
+**解決方案**：
+```bash
+# 方法 1：使用 PowerShell 執行 npm 命令
+powershell -Command "cd D:\frc-scout-scanner; npm install"
+
+# 方法 2：手動編輯 package.json 添加依賴
+# 然後清除並重新安裝
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**預防措施**：
+- 在 Windows 環境下，優先使用 PowerShell 執行 npm 命令
+- 安裝套件後必須驗證：
+  ```bash
+  # 檢查 package.json
+  cat package.json | grep "套件名稱"
+
+  # 檢查 node_modules
+  ls node_modules/套件名稱/package.json
+
+  # 執行建置測試
+  npm run build
+  ```
+
+**相關檔案**：
+- package.json
+- node_modules/
+
+---
+
+## 常見錯誤模式
+
+### 1. TypeScript 類型錯誤
+
+**症狀**：`Type 'X' is not assignable to type 'Y'`
+
+**常見原因**：
+- 使用 `any` 類型後忘記轉換
+- JSON 解析後未指定類型
+
+**解決模板**：
+```typescript
+// 正確做法
+const data = JSON.parse(str) as ExpectedType;
+
+// 或使用類型守衛
+function isExpectedType(obj: unknown): obj is ExpectedType {
+  return typeof obj === 'object' && obj !== null && 'requiredField' in obj;
+}
+```
+
+### 2. 模組找不到
+
+**症狀**：`Cannot find module 'xxx'`
+
+**檢查清單**：
+- [ ] 套件已安裝到 node_modules
+- [ ] package.json 有該套件
+- [ ] 導入路徑正確
+- [ ] TypeScript 類型聲明存在（@types/xxx）
+
+### 3. LZ-String 解壓失敗
+
+**症狀**：`decompressFromBase64` 返回 `null`
+
+**可能原因**：
+- QR 內容不是有效的 Base64
+- 資料在傳輸中損壞
+- 使用了錯誤的壓縮方法
+
+**解決方案**：
+```typescript
+const decompressed = LZString.decompressFromBase64(content);
+if (!decompressed) {
+  throw new Error('無法解壓 QR 資料，可能是無效的格式');
+}
+```
+
+### 4. QR 掃描器初始化失敗
+
+**症狀**：掃描器無法啟動或黑屏
+
+**檢查清單**：
+- [ ] 瀏覽器已授予相機權限
+- [ ] 元素 ID 存在於 DOM 中
+- [ ] 沒有同時初始化多個掃描器實例
+
+### 5. React Hook 規則違反
+
+**症狀**：`Hooks can only be called inside the body of a function component`
+
+**常見原因**：
+- 在條件語句中呼叫 Hook
+- 在迴圈中呼叫 Hook
+- 在普通函式中呼叫 Hook
+
+---
+
+## 自動檢查清單
+
+在提交代碼前，確認以下項目：
+
+### 建置檢查
+- [ ] `npm run build` 成功無錯誤
+- [ ] 無 TypeScript 警告
+
+### 套件檢查
+- [ ] 新套件已添加到 package.json
+- [ ] 必要的 @types 套件已安裝
+
+### 代碼品質
+- [ ] 無 `any` 類型（除非必要並有註解說明）
+- [ ] 所有 async 操作有 try-catch
+- [ ] 沒有 console.log（除了調試用途）
+
+### QR 相關
+- [ ] 解碼函式有錯誤處理
+- [ ] 處理 null/undefined 返回值
+- [ ] 驗證資料欄位數量
+
+---
+
+## 學到的教訓
+
+### 1. 永遠驗證外部操作
+
+任何依賴外部工具（npm、git 等）的操作，都要驗證結果。
+
+### 2. 先理解再實作
+
+閱讀完整的整合文件（SCANNER_INTEGRATION.md）再開始編碼。
+
+### 3. 小步快跑
+
+每完成一個小功能就測試，不要等到全部完成才測試。
+
+### 4. 記錄一切
+
+遇到問題立即記錄，包括錯誤訊息、嘗試的解決方案、最終解決方法。
+
+---
+
+## 統計
+
+| 類型 | 數量 |
+|------|------|
+| 總錯誤數 | 1 |
+| 已解決 | 1 |
+| 進行中 | 0 |
+| 高嚴重度 | 0 |
+| 中嚴重度 | 1 |
+| 低嚴重度 | 0 |
+
+---
+
+## Windows 環境特別注意事項
+
+1. **npm 命令使用 PowerShell**：`powershell -Command "npm install ..."`
+2. **路徑格式**：Windows 使用 `D:\path` 或 `/d/path`，根據工具不同
+3. **驗證所有操作**：Windows 下的命令輸出可能不顯示，要額外驗證
+
+---
+
+*此檔案在每次遇到錯誤時更新*
+*最後更新：2026-01-26*

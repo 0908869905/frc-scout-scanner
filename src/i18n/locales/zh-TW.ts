@@ -1,0 +1,190 @@
+/**
+ * FRC Scout Scanner - 繁體中文翻譯
+ */
+
+export const zhTW = {
+  // 導航
+  nav: {
+    scan: '掃描',
+    history: '歷史',
+    settings: '設定',
+  },
+
+  // 掃描頁
+  scan: {
+    title: 'QR 掃描器',
+    scanning: '掃描中...',
+    continue: '繼續掃描',
+    save: '儲存',
+    discard: '捨棄',
+    initCamera: '正在初始化相機...',
+    cameraError: '無法存取相機，請授予權限。',
+    decodeFailed: '解碼失敗',
+    cameraNotFound: '找不到相機。請確認您的裝置有可用的相機。',
+    cameraPermissionDenied: '相機權限被拒絕。請在瀏覽器設定中允許相機存取。',
+    cameraInitFailed: '無法初始化相機。請重新整理頁面再試。',
+    retry: '重試',
+  },
+
+  // 結果
+  result: {
+    validationPassed: '驗證通過',
+    errors: '個錯誤',
+    warnings: '個警告',
+    saved: '資料已儲存',
+    pathMerged: '路徑資料已合併',
+    incomplete: '資料不完整，無法儲存',
+  },
+
+  // 歷史頁
+  history: {
+    title: '掃描歷史',
+    filter: '篩選',
+    all: '全部',
+    allTypes: '所有類型',
+    allStatus: '所有狀態',
+    type: '類型',
+    status: '狀態',
+    uploaded: '已上傳',
+    pending: '待上傳',
+    selectAll: '全選',
+    selected: '已選取',
+    uploadSelected: '上傳選取',
+    deleteSelected: '刪除選取',
+    exportCSV: '匯出 CSV',
+    exportJSON: '匯出 JSON',
+    clearAll: '清除全部',
+    noRecords: '沒有掃描記錄',
+    startScanning: '開始掃描 QR 碼以在此處顯示',
+    moreItems: '更多項目',
+    total: '總計',
+    details: '掃描詳情',
+    team: '隊伍',
+    match: '比賽',
+    event: '賽事',
+    scanTime: '掃描時間',
+  },
+
+  // 設定頁
+  settings: {
+    title: '設定',
+    sheetsApi: 'Google Sheets',
+    sheetsUrl: 'Apps Script URL',
+    sheetsUrlHint: '部署您的 Google Apps Script 為網頁應用程式並將 URL 貼到這裡',
+    testConnection: '測試連線',
+    connected: '已連線',
+    failed: '連線失敗',
+    notConnected: '未連線',
+    exportSettings: '匯出設定',
+    defaultFormat: '預設匯出格式',
+    includeHeaders: '包含標題列',
+    includeHeadersDesc: '在 CSV 匯出中包含欄位標題',
+    timeFormat: '時間格式',
+    localFormat: '本地格式',
+    scanSettings: '掃描設定',
+    autoUpload: '自動上傳',
+    autoUploadDesc: '掃描後自動上傳',
+    playSound: '音效',
+    playSoundDesc: '掃描成功時播放音效',
+    vibrate: '震動回饋',
+    vibrateDesc: '掃描成功時震動',
+    dataManagement: '資料管理',
+    scanHistory: '掃描歷史',
+    recordsStored: '筆記錄儲存於本地',
+    historyCleared: '歷史已清除',
+    about: '關於',
+    version: '版本',
+    builtFor: '為 FRC 隊伍 6998 打造',
+    description: '掃描 Scouting PASS 的 QR 碼並上傳到 Google Sheets',
+    clearConfirmTitle: '清除歷史',
+    clearConfirmMessage: '確定要刪除所有 {count} 筆掃描記錄嗎？此操作無法復原。',
+    language: '語言',
+  },
+
+  // QR 類型
+  qrType: {
+    match: '比賽資料',
+    path: '路徑資料',
+    pit: 'Pit 資料',
+    unknown: '未知格式',
+  },
+
+  // 上傳
+  upload: {
+    pendingUpload: '待上傳',
+    uploadAll: '上傳全部',
+    noItems: '沒有待上傳的項目',
+    complete: '上傳完成',
+    success: '成功',
+    failed: '失敗',
+    uploadFailed: '上傳失敗',
+    connectionFailed: '連線測試失敗',
+    successCount: '成功上傳 {count} 項',
+  },
+
+  // 匯出
+  export: {
+    noData: '沒有資料可匯出',
+    jsonSuccess: 'JSON 匯出成功',
+    csvCount: '已匯出 {count} 個 CSV 檔案',
+  },
+
+  // 欄位標籤
+  fields: {
+    scouterName: '記錄員',
+    eventCode: '賽事代碼',
+    matchLevel: '比賽等級',
+    matchNumber: '比賽編號',
+    alliance: '聯盟',
+    teamNumber: '隊伍編號',
+    autoFuel: '自動燃料',
+    autoClimbStatus: '自動爬升',
+    autoClimbTime: '自動爬升時間',
+    teleFuel: '遙控燃料',
+    teleClimbStatus: '遙控爬升',
+    teleClimbTime: '遙控爬升時間',
+    bumpTrenchCount: '撞溝次數',
+    fuelDroppedOnBump: '撞擊掉落',
+    penaltyCount: '罰球次數',
+    yellowCard: '黃牌',
+    redCard: '紅牌',
+    robotDied: '機器人故障',
+    almostTipped: '差點翻倒',
+    ridingOnBall: '騎球',
+    defenseRating: '防守評分',
+    driverSkill: '駕駛技術',
+    speedRating: '速度評分',
+    comments: '評論',
+    subjectiveNotes: '備註',
+    autoPath: '自動路徑',
+    pitDriveTrain: '驅動系統',
+    pitMotorType: '馬達類型',
+    pitLength: '長度',
+    pitWidth: '寬度',
+    pitWeight: '重量',
+    pitCanFuel: '可處理燃料',
+    pitCanTowerL1: '可爬 L1',
+    pitCanTowerL2: '可爬 L2',
+    pitCanTowerL3: '可爬 L3',
+    pitAutoNotes: '自動備註',
+    noPath: '無路徑',
+    points: '個點',
+  },
+
+  // 通用
+  common: {
+    yes: '是',
+    no: '否',
+    confirm: '確認',
+    cancel: '取消',
+    upload: '上傳',
+    delete: '刪除',
+    success: '成功',
+    error: '錯誤',
+    warning: '警告',
+    info: '提示',
+    deleted: '已刪除 {count} 項',
+  },
+};
+
+export type Translations = typeof zhTW;

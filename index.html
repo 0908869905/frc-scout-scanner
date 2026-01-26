@@ -3,18 +3,200 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="FRC 6998 Scouting QR Scanner - Scan QR Code and upload to Google Sheets" />
     <title>FRC Scout Scanner</title>
-    <!-- Fonts -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'Noto Sans TC', 'system-ui', 'sans-serif'],
+              mono: ['JetBrains Mono', 'Consolas', 'monospace'],
+            },
+            colors: {
+              cyan: {
+                400: '#22d3ee',
+                500: '#06b6d4',
+                600: '#0891b2',
+              },
+              amber: {
+                400: '#fbbf24',
+                500: '#f59e0b',
+                600: '#d97706',
+              },
+              emerald: {
+                400: '#34d399',
+                500: '#10b981',
+                600: '#059669',
+              },
+              violet: {
+                400: '#a78bfa',
+                500: '#8b5cf6',
+                600: '#7c3aed',
+              },
+            },
+            animation: {
+              'scan-line': 'scan-line 2s ease-in-out infinite',
+              'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+            },
+            keyframes: {
+              'scan-line': {
+                '0%, 100%': { top: '10%', opacity: '0.5' },
+                '50%': { top: '90%', opacity: '1' },
+              },
+              'pulse-glow': {
+                '0%, 100%': { boxShadow: '0 0 20px rgba(34, 211, 238, 0.3)' },
+                '50%': { boxShadow: '0 0 40px rgba(34, 211, 238, 0.6)' },
+              },
+            },
+          },
+        },
+      }
+    </script>
+
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- External Libraries via CDN to ensure compatibility without npm install -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-    <link rel="stylesheet" href="/styles.css">
-</head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        min-height: 100vh;
+      }
+
+      .font-mono {
+        font-family: 'JetBrains Mono', Consolas, monospace;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #1e293b;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+
+      /* Scanner animation */
+      @keyframes scan-line {
+        0%, 100% {
+          top: 10%;
+          opacity: 0.5;
+        }
+        50% {
+          top: 90%;
+          opacity: 1;
+        }
+      }
+
+      .scan-line {
+        animation: scan-line 2s ease-in-out infinite;
+      }
+
+      /* Pulse glow animation */
+      @keyframes pulse-glow {
+        0%, 100% {
+          box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 40px rgba(34, 211, 238, 0.6);
+        }
+      }
+
+      .pulse-glow {
+        animation: pulse-glow 2s ease-in-out infinite;
+      }
+
+      /* Fade in animation */
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .animate-in {
+        animation: fade-in 0.2s ease-out;
+      }
+
+      /* html5-qrcode scanner styling */
+      #qr-reader {
+        border: none !important;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      #qr-reader video {
+        border-radius: 8px;
+      }
+
+      #qr-reader__scan_region {
+        background: transparent !important;
+      }
+
+      #qr-reader__dashboard {
+        padding: 12px !important;
+        background: #1e293b !important;
+      }
+
+      #qr-reader__dashboard button {
+        background: #06b6d4 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+        cursor: pointer !important;
+        transition: background 0.2s !important;
+      }
+
+      #qr-reader__dashboard button:hover {
+        background: #0891b2 !important;
+      }
+
+      #qr-reader__dashboard select {
+        background: #0f172a !important;
+        border: 1px solid #475569 !important;
+        border-radius: 6px !important;
+        padding: 6px 12px !important;
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+      }
+
+      #qr-reader__status_span {
+        color: #94a3b8 !important;
+        font-family: 'Inter', sans-serif !important;
+      }
+
+      #qr-reader__header_message {
+        color: #94a3b8 !important;
+        font-family: 'Inter', sans-serif !important;
+      }
+    </style>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
