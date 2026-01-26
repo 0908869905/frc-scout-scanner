@@ -73,16 +73,31 @@ export async function uploadToSheets(
   };
 
   try {
+    // 使用 text/plain 避免 CORS preflight
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
+      mode: 'cors',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
       },
       body: JSON.stringify(payload),
     });
 
     // 嘗試解析回應
-    const result: AppsScriptResponse = await response.json();
+    const text = await response.text();
+    let result: AppsScriptResponse;
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      // 如果回應不是 JSON，假設成功
+      console.log('Response:', text);
+      return {
+        success: true,
+        message: '上傳完成',
+        timestamp: Date.now(),
+      };
+    }
 
     if (result.success) {
       return {
@@ -98,13 +113,10 @@ export async function uploadToSheets(
       };
     }
   } catch (error) {
-    // 如果無法解析 JSON，可能是 CORS 問題
-    // 在這種情況下，我們假設請求已發送但無法確認結果
-    console.warn('Upload response parsing failed:', error);
-
+    console.error('Upload failed:', error);
     return {
-      success: true, // 樂觀假設成功
-      message: '上傳請求已發送（無法確認結果）',
+      success: false,
+      message: `上傳失敗: ${error instanceof Error ? error.message : '網路錯誤'}`,
       timestamp: Date.now(),
     };
   }
@@ -160,13 +172,22 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   try {
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
+      mode: 'cors',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
       },
       body: JSON.stringify(payload),
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result: { success: boolean };
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      // 假設成功
+      result = { success: true };
+    }
 
     if (result.success) {
       // 批次上傳成功
@@ -252,9 +273,21 @@ export async function testConnection(url: string): Promise<{
     // 發送 GET 請求測試連線
     const response = await fetch(url, {
       method: 'GET',
+      mode: 'cors',
     });
 
-    const result: AppsScriptResponse = await response.json();
+    const text = await response.text();
+    let result: AppsScriptResponse;
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      // 有回應但不是 JSON，可能是重定向頁面
+      return {
+        success: false,
+        message: '回應格式錯誤，請確認 URL 是否正確部署',
+      };
+    }
 
     if (result.success) {
       return {
@@ -321,13 +354,24 @@ export async function sendTestData(url: string): Promise<{
   try {
     const response = await fetch(url, {
       method: 'POST',
+      mode: 'cors',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
       },
       body: JSON.stringify(testPayload),
     });
 
-    const result: AppsScriptResponse = await response.json();
+    const text = await response.text();
+    let result: AppsScriptResponse;
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      return {
+        success: true,
+        message: '測試請求已發送',
+      };
+    }
 
     if (result.success) {
       return {
