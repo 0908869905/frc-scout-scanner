@@ -34,6 +34,7 @@ export const zhTW = {
     saved: '資料已儲存',
     pathMerged: '路徑資料已合併',
     incomplete: '資料不完整，無法儲存',
+    alreadyExists: '已存在',
   },
 
   // 歷史頁

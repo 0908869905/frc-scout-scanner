@@ -3,13 +3,13 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Scanner, ScanResult, UploadQueue } from '../components/scanner';
+import { Scanner, UploadQueue } from '../components/scanner';
 import { validateData } from '../utils/validator';
 import { getMatchKey, isValidDecodeResult } from '../utils/decoder';
 import { generateId } from '../utils/storage';
 import { uploadBatch } from '../utils/sheets';
 import { useI18n } from '../i18n';
-import type { DecodeResult, ScanHistoryItem, ValidationResult } from '../types';
+import type { DecodeResult, ScanHistoryItem } from '../types';
 
 interface ScanPageProps {
   history: ScanHistoryItem[];
@@ -25,85 +25,75 @@ export function ScanPage({
   onShowToast,
 }: ScanPageProps) {
   const { t } = useI18n();
-  const [lastScan, setLastScan] = useState<DecodeResult | null>(null);
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // 处理扫描结果
+  // 处理扫描结果 - 直接儲存，不需確認
   const handleScan = useCallback((result: DecodeResult) => {
     setError(null);
-    setLastScan(result);
 
-    // 验证数据
-    const validationResult = validateData(result.type, result.data);
-    setValidation(validationResult);
-
-    if (!validationResult.isValid) {
-      onShowToast('warning', `${validationResult.errors.length} ${t.result.errors}`);
+    // 驗證基本資料
+    if (!isValidDecodeResult(result)) {
+      onShowToast('warning', t.result.incomplete);
+      return;
     }
-  }, [onShowToast, t.result.errors]);
+
+    const matchKey = getMatchKey(result.data);
+
+    // 檢查 Path 是否需要配對到現有 Match
+    if (result.type === 'path') {
+      const matchItem = history.find(
+        (h) => h.qrType === 'match' && h.matchKey === matchKey
+      );
+      if (matchItem) {
+        // 將路徑數據合併到 Match
+        const updatedHistory = history.map((h) =>
+          h.id === matchItem.id
+            ? { ...h, data: { ...h.data, autoPath: result.data.autoPath } }
+            : h
+        );
+        onUpdateHistory(updatedHistory);
+        onShowToast('success', t.result.pathMerged);
+        return;
+      }
+    }
+
+    // 檢查是否重複（相同 matchKey）
+    const existingItem = history.find(
+      (h) => h.qrType === result.type && h.matchKey === matchKey
+    );
+    if (existingItem) {
+      onShowToast('info', `${result.type === 'match' ? 'Match' : 'Path'} ${result.data.teamNumber} #${result.data.matchNumber} ${t.result.alreadyExists || '已存在'}`);
+      return;
+    }
+
+    // 驗證數據
+    const validationResult = validateData(result.type, result.data);
+
+    // 直接創建新的歷史記錄
+    const newItem: ScanHistoryItem = {
+      id: generateId(),
+      qrType: result.type,
+      data: result.data,
+      scanTime: new Date().toISOString(),
+      matchKey,
+      uploaded: false,
+      validationResult: validationResult || undefined,
+    };
+
+    onAddHistory(newItem);
+
+    // 簡短提示
+    const teamNum = result.data.teamNumber || '?';
+    const matchNum = result.data.matchNumber || '?';
+    onShowToast('success', `✓ ${teamNum} #${matchNum}`);
+  }, [history, onAddHistory, onUpdateHistory, onShowToast, t.result]);
 
   // 处理扫描错误
   const handleError = useCallback((errorMessage: string) => {
     setError(errorMessage);
     onShowToast('error', errorMessage);
   }, [onShowToast]);
-
-  // 确认储存扫描结果
-  const handleConfirm = useCallback(() => {
-    if (!lastScan) return;
-
-    if (!isValidDecodeResult(lastScan)) {
-      onShowToast('error', t.result.incomplete);
-      return;
-    }
-
-    const matchKey = getMatchKey(lastScan.data);
-
-    // 检查 Path 是否需要配对到现有 Match
-    if (lastScan.type === 'path') {
-      const matchItem = history.find(
-        (h) => h.qrType === 'match' && h.matchKey === matchKey
-      );
-      if (matchItem) {
-        // 将路径数据合并到 Match
-        const updatedHistory = history.map((h) =>
-          h.id === matchItem.id
-            ? { ...h, data: { ...h.data, autoPath: lastScan.data.autoPath } }
-            : h
-        );
-        onUpdateHistory(updatedHistory);
-        onShowToast('success', t.result.pathMerged);
-        setLastScan(null);
-        setValidation(null);
-        return;
-      }
-    }
-
-    // 创建新的历史记录
-    const newItem: ScanHistoryItem = {
-      id: generateId(),
-      qrType: lastScan.type,
-      data: lastScan.data,
-      scanTime: new Date().toISOString(),
-      matchKey,
-      uploaded: false,
-      validationResult: validation || undefined,
-    };
-
-    onAddHistory(newItem);
-    onShowToast('success', t.result.saved);
-    setLastScan(null);
-    setValidation(null);
-  }, [lastScan, history, validation, onAddHistory, onUpdateHistory, onShowToast, t.result]);
-
-  // 舍弃扫描结果
-  const handleDiscard = useCallback(() => {
-    setLastScan(null);
-    setValidation(null);
-    setError(null);
-  }, []);
 
   // 上传所有待上传的数据
   const handleUploadAll = useCallback(async () => {
@@ -166,22 +156,12 @@ export function ScanPage({
         </div>
       )}
 
-      {/* 扫描器 */}
+      {/* 扫描器 - 持續開啟 */}
       <Scanner
         onScan={handleScan}
         onError={handleError}
-        isActive={!lastScan}
+        isActive={true}
       />
-
-      {/* 扫描结果预览 */}
-      {lastScan && (
-        <ScanResult
-          result={lastScan}
-          validation={validation || undefined}
-          onConfirm={handleConfirm}
-          onDiscard={handleDiscard}
-        />
-      )}
 
       {/* 待上传队列 */}
       <UploadQueue

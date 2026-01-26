@@ -36,6 +36,7 @@ export const en: Translations = {
     saved: 'Data saved successfully',
     pathMerged: 'Path data merged with match',
     incomplete: 'Data is incomplete, cannot save',
+    alreadyExists: 'already exists',
   },
 
   // History Page

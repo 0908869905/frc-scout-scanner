@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "name": "FRC Scout Scanner - 顏色系統",
+    "theme": "深色科技風",
+    "version": "1.0",
+    "createdAt": "2026-01-26"
+  },
+  "colors": {
+    "background": {
+      "primary": {
+        "value": "#0f172a",
+        "tailwind": "slate-900",
+        "usage": "主要背景"
+      },
+      "secondary": {
+        "value": "#1e293b",
+        "tailwind": "slate-800",
+        "usage": "卡片背景、次要區塊"
+      },
+      "tertiary": {
+        "value": "#334155",
+        "tailwind": "slate-700",
+        "usage": "懸停狀態、分隔線"
+      }
+    },
+    "brand": {
+      "primary": {
+        "value": "#06b6d4",
+        "tailwind": "cyan-500",
+        "usage": "主色調、主要按鈕、連結"
+      },
+      "primaryHover": {
+        "value": "#0891b2",
+        "tailwind": "cyan-600",
+        "usage": "主色調懸停狀態"
+      },
+      "accent": {
+        "value": "#f59e0b",
+        "tailwind": "amber-500",
+        "usage": "強調色、Path QR 標識、重要提示"
+      },
+      "accentHover": {
+        "value": "#d97706",
+        "tailwind": "amber-600",
+        "usage": "強調色懸停狀態"
+      }
+    },
+    "semantic": {
+      "success": {
+        "value": "#10b981",
+        "tailwind": "emerald-500",
+        "usage": "成功狀態、已上傳、驗證通過"
+      },
+      "successLight": {
+        "value": "#d1fae5",
+        "tailwind": "emerald-100",
+        "usage": "成功背景（淺色）"
+      },
+      "error": {
+        "value": "#ef4444",
+        "tailwind": "red-500",
+        "usage": "錯誤狀態、驗證失敗、紅牌"
+      },
+      "errorLight": {
+        "value": "#fee2e2",
+        "tailwind": "red-100",
+        "usage": "錯誤背景（淺色）"
+      },
+      "warning": {
+        "value": "#f59e0b",
+        "tailwind": "amber-500",
+        "usage": "警告狀態、黃牌"
+      },
+      "warningLight": {
+        "value": "#fef3c7",
+        "tailwind": "amber-100",
+        "usage": "警告背景（淺色）"
+      },
+      "info": {
+        "value": "#3b82f6",
+        "tailwind": "blue-500",
+        "usage": "資訊提示"
+      }
+    },
+    "text": {
+      "primary": {
+        "value": "#ffffff",
+        "tailwind": "white",
+        "usage": "主要文字"
+      },
+      "secondary": {
+        "value": "#94a3b8",
+        "tailwind": "slate-400",
+        "usage": "次要文字、說明文字"
+      },
+      "muted": {
+        "value": "#64748b",
+        "tailwind": "slate-500",
+        "usage": "禁用文字、佔位符"
+      },
+      "inverse": {
+        "value": "#0f172a",
+        "tailwind": "slate-900",
+        "usage": "深色文字（用於淺色背景）"
+      }
+    },
+    "alliance": {
+      "red": {
+        "value": "#ef4444",
+        "tailwind": "red-500",
+        "usage": "紅色聯盟標識"
+      },
+      "redBackground": {
+        "value": "#7f1d1d",
+        "tailwind": "red-900",
+        "usage": "紅色聯盟背景"
+      },
+      "blue": {
+        "value": "#3b82f6",
+        "tailwind": "blue-500",
+        "usage": "藍色聯盟標識"
+      },
+      "blueBackground": {
+        "value": "#1e3a8a",
+        "tailwind": "blue-900",
+        "usage": "藍色聯盟背景"
+      }
+    },
+    "qrType": {
+      "match": {
+        "value": "#06b6d4",
+        "tailwind": "cyan-500",
+        "usage": "Match Data QR 標識"
+      },
+      "path": {
+        "value": "#f59e0b",
+        "tailwind": "amber-500",
+        "usage": "Auto Path QR 標識"
+      },
+      "pit": {
+        "value": "#8b5cf6",
+        "tailwind": "violet-500",
+        "usage": "Pit Scouting QR 標識"
+      }
+    },
+    "border": {
+      "default": {
+        "value": "#334155",
+        "tailwind": "slate-700",
+        "usage": "預設邊框"
+      },
+      "focus": {
+        "value": "#06b6d4",
+        "tailwind": "cyan-500",
+        "usage": "聚焦邊框"
+      }
+    }
+  },
+  "gradients": {
+    "headerGradient": {
+      "value": "linear-gradient(to right, #0f172a, #1e293b)",
+      "tailwind": "bg-gradient-to-r from-slate-900 to-slate-800",
+      "usage": "頁首漸層"
+    },
+    "cardGlow": {
+      "value": "0 0 20px rgba(6, 182, 212, 0.3)",
+      "usage": "卡片發光效果"
+    }
+  }
+}

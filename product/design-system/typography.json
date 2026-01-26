@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "name": "FRC Scout Scanner - 字型系統",
+    "version": "1.0",
+    "createdAt": "2026-01-26"
+  },
+  "fonts": {
+    "primary": {
+      "family": "Inter",
+      "fallback": "system-ui, -apple-system, sans-serif",
+      "usage": "UI 文字、按鈕、標籤",
+      "googleFonts": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "semibold": 600,
+        "bold": 700
+      }
+    },
+    "chinese": {
+      "family": "Noto Sans TC",
+      "fallback": "Inter, system-ui, sans-serif",
+      "usage": "中文內容",
+      "googleFonts": "https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap",
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "bold": 700
+      }
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "fallback": "Consolas, monospace",
+      "usage": "數據顯示、隊伍編號、比賽編號",
+      "googleFonts": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap",
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "semibold": 600
+      }
+    }
+  },
+  "fontStack": {
+    "css": "'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif",
+    "mono": "'JetBrains Mono', Consolas, 'Courier New', monospace"
+  },
+  "scale": {
+    "xs": {
+      "size": "0.75rem",
+      "lineHeight": "1rem",
+      "tailwind": "text-xs",
+      "usage": "輔助文字、時間戳記"
+    },
+    "sm": {
+      "size": "0.875rem",
+      "lineHeight": "1.25rem",
+      "tailwind": "text-sm",
+      "usage": "次要文字、表格內容"
+    },
+    "base": {
+      "size": "1rem",
+      "lineHeight": "1.5rem",
+      "tailwind": "text-base",
+      "usage": "正文、按鈕文字"
+    },
+    "lg": {
+      "size": "1.125rem",
+      "lineHeight": "1.75rem",
+      "tailwind": "text-lg",
+      "usage": "卡片標題"
+    },
+    "xl": {
+      "size": "1.25rem",
+      "lineHeight": "1.75rem",
+      "tailwind": "text-xl",
+      "usage": "區塊標題"
+    },
+    "2xl": {
+      "size": "1.5rem",
+      "lineHeight": "2rem",
+      "tailwind": "text-2xl",
+      "usage": "頁面標題"
+    },
+    "3xl": {
+      "size": "1.875rem",
+      "lineHeight": "2.25rem",
+      "tailwind": "text-3xl",
+      "usage": "大標題、數據重點"
+    },
+    "4xl": {
+      "size": "2.25rem",
+      "lineHeight": "2.5rem",
+      "tailwind": "text-4xl",
+      "usage": "主標題"
+    }
+  },
+  "styles": {
+    "heading1": {
+      "size": "text-2xl md:text-3xl",
+      "weight": "font-bold",
+      "color": "text-white",
+      "usage": "頁面主標題"
+    },
+    "heading2": {
+      "size": "text-xl md:text-2xl",
+      "weight": "font-semibold",
+      "color": "text-white",
+      "usage": "區塊標題"
+    },
+    "heading3": {
+      "size": "text-lg",
+      "weight": "font-semibold",
+      "color": "text-white",
+      "usage": "卡片標題"
+    },
+    "body": {
+      "size": "text-base",
+      "weight": "font-normal",
+      "color": "text-slate-300",
+      "usage": "正文內容"
+    },
+    "bodySmall": {
+      "size": "text-sm",
+      "weight": "font-normal",
+      "color": "text-slate-400",
+      "usage": "說明文字"
+    },
+    "label": {
+      "size": "text-sm",
+      "weight": "font-medium",
+      "color": "text-slate-300",
+      "usage": "表單標籤"
+    },
+    "button": {
+      "size": "text-base",
+      "weight": "font-medium",
+      "usage": "按鈕文字"
+    },
+    "data": {
+      "family": "font-mono",
+      "size": "text-lg md:text-xl",
+      "weight": "font-semibold",
+      "color": "text-cyan-400",
+      "usage": "數據顯示（隊伍編號、分數）"
+    },
+    "dataSmall": {
+      "family": "font-mono",
+      "size": "text-sm",
+      "weight": "font-medium",
+      "color": "text-slate-300",
+      "usage": "次要數據"
+    },
+    "timestamp": {
+      "family": "font-mono",
+      "size": "text-xs",
+      "weight": "font-normal",
+      "color": "text-slate-500",
+      "usage": "時間戳記"
+    }
+  },
+  "tailwindConfig": {
+    "fontFamily": {
+      "sans": ["Inter", "Noto Sans TC", "system-ui", "sans-serif"],
+      "mono": ["JetBrains Mono", "Consolas", "monospace"]
+    }
+  },
+  "htmlImport": "<!-- Google Fonts -->\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap\" rel=\"stylesheet\">"
+}

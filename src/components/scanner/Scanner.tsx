@@ -24,29 +24,36 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
   const isInitializingRef = useRef(false);
   const isMountedRef = useRef(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanCount, setScanCount] = useState(0);  // 掃描計數器
+
+  // 防止重複掃描同一個 QR code
+  const lastScannedRef = useRef<string>('');
+  const lastScannedTimeRef = useRef<number>(0);
 
   // 處理掃描成功
   const handleScanSuccess = useCallback((decodedText: string) => {
+    // 防止 2 秒內重複掃描相同內容
+    const now = Date.now();
+    if (decodedText === lastScannedRef.current && now - lastScannedTimeRef.current < 2000) {
+      return;
+    }
+
     try {
       const result = decodeQR(decodedText);
+
+      // 更新最後掃描記錄
+      lastScannedRef.current = decodedText;
+      lastScannedTimeRef.current = now;
 
       // 播放音效和震動
       playSuccessSound();
       triggerVibration();
 
-      onScan(result);
+      // 更新計數器
+      setScanCount(prev => prev + 1);
 
-      // 暫停掃描
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.pause();
-          setIsPaused(true);
-        } catch (e) {
-          console.warn('Failed to pause scanner:', e);
-        }
-      }
+      onScan(result);
     } catch (e) {
       onError(e instanceof Error ? e.message : t.scan.decodeFailed);
     }
@@ -70,7 +77,6 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         }
         if (isMountedRef.current) {
           setIsInitialized(false);
-          setIsPaused(false);
           setCameraError(null);
         }
         isInitializingRef.current = false;
@@ -105,14 +111,19 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         const scanner = new Html5QrcodeScanner(
           'qr-reader',
           {
-            fps: 15,  // 提高掃描頻率
-            qrbox: { width: 250, height: 250 },  // 固定大小的掃描框更穩定
+            fps: 30,  // 最高掃描頻率
+            qrbox: { width: 300, height: 300 },  // 稍大的掃描框
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
             rememberLastUsedCamera: true,
             showTorchButtonIfSupported: true,
-            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], // 只掃描 QR Code 提高效率
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            videoConstraints: {
+              facingMode: 'environment',
+              width: { ideal: 1920 },  // 高解析度
+              height: { ideal: 1080 },
+            },
           },
-          /* verbose= */ true  // 開啟調試模式
+          /* verbose= */ false
         );
 
         scanner.render(
@@ -169,20 +180,6 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
     };
   }, [isActive, handleScanSuccess, onError]);
 
-  // 恢復掃描
-  const resumeScanning = () => {
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.resume();
-        setIsPaused(false);
-      } catch (e) {
-        console.warn('Failed to resume scanner:', e);
-        // 如果恢復失敗，嘗試重新初始化
-        handleRetry();
-      }
-    }
-  };
-
   // 重試初始化
   const handleRetry = () => {
     // 清理現有掃描器
@@ -192,8 +189,8 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
     }
     isInitializingRef.current = false;
     setIsInitialized(false);
-    setIsPaused(false);
     setCameraError(null);
+    setScanCount(0);
   };
 
   return (
@@ -206,8 +203,8 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
           style={{ minHeight: '300px' }}
         />
 
-        {/* 掃描線動畫 - 全範圍掃描 */}
-        {isInitialized && !isPaused && !cameraError && (
+        {/* 掃描線動畫 */}
+        {isInitialized && !cameraError && (
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
             <div className="w-full h-full max-w-[90%] max-h-[90%] relative">
               {/* 四個角 */}
@@ -247,21 +244,19 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         </div>
       )}
 
-      {/* 控制按鈕 */}
+      {/* 狀態列 */}
       {isInitialized && !cameraError && (
-        <div className="p-4 border-t border-slate-700 flex justify-center gap-3">
-          {isPaused ? (
-            <Button onClick={resumeScanning} variant="primary">
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="p-4 border-t border-slate-700 flex justify-between items-center">
+          <div className="flex items-center gap-2 text-slate-400">
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+            <span className="text-sm">{t.scan.scanning}</span>
+          </div>
+          {scanCount > 0 && (
+            <div className="flex items-center gap-2 text-cyan-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {t.scan.continue}
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2 text-slate-400">
-              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-              <span className="text-sm">{t.scan.scanning}</span>
+              <span className="text-sm font-medium">{scanCount}</span>
             </div>
           )}
         </div>
