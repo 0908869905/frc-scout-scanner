@@ -41,6 +41,10 @@
 |----|------|------|------|------|
 | E001 | npm | Windows Git Bash 環境 npm install 無輸出 | 2026-01-26 | 已解決 |
 | E002 | React | StrictMode 雙重掛載導致相機初始化失敗 | 2026-01-26 | 已解決 |
+| E003 | CORS | Google Apps Script 上傳失敗 | 2026-01-26 | 已解決 |
+| E004 | React | useEffect dependency 導致相機重啟 | 2026-01-26 | 已解決 |
+| E005 | TypeScript | ScanHistoryItem.qrType vs type 混淆 | 2026-01-26 | 已解決 |
+| E006 | Camera | OverconstrainedError 相機參數不支援 | 2026-01-26 | 已解決 |
 
 ---
 
@@ -93,6 +97,167 @@ npm install
 **相關檔案**：
 - package.json
 - node_modules/
+
+---
+
+### [E003] Google Apps Script CORS 上傳失敗
+
+**日期**：2026-01-26
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+上傳顯示成功，但試算表沒有資料
+Response: {"success":true,"message":"Processed 0/1 items"}
+```
+
+**根本原因**：
+- `Content-Type: application/json` 會觸發 CORS preflight (OPTIONS) 請求
+- Google Apps Script 不支援 OPTIONS 方法
+- 請求被瀏覽器攔截，實際上沒有送達
+
+**解決方案**：
+```typescript
+// 移除 headers，讓瀏覽器使用預設 Content-Type
+const response = await fetch(url, {
+  method: 'POST',
+  redirect: 'follow',
+  body: JSON.stringify(payload),
+});
+```
+
+**預防措施**：
+- 對 Google Apps Script 的請求不要設定 Content-Type header
+- Apps Script 會自動解析 JSON body
+
+**相關檔案**：
+- src/utils/sheets.ts
+
+---
+
+### [E004] useEffect dependency 導致相機重啟
+
+**日期**：2026-01-26
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+掃描後相機消失/重啟
+```
+
+**根本原因**：
+- `handleScanSuccess` callback 在 useEffect dependencies 中
+- 當 parent component 重新渲染時，`onScan` prop 會重新創建
+- 導致 `handleScanSuccess` 改變，觸發 useEffect 清理並重新初始化
+
+**解決方案**：
+```typescript
+// 使用 ref 存儲 callbacks
+const onScanRef = useRef(onScan);
+onScanRef.current = onScan;
+
+// handleScanSuccess 使用 ref
+const handleScanSuccess = useCallback((text: string) => {
+  onScanRef.current(result);
+}, []); // 空依賴
+
+// useEffect 只依賴 isActive
+useEffect(() => {
+  // ...
+}, [isActive]);
+```
+
+**預防措施**：
+- 對於會觸發 parent state 更新的 callbacks，使用 useRef 存儲
+- useEffect 的 dependencies 要仔細考慮是否真的需要
+
+**相關檔案**：
+- src/components/scanner/Scanner.tsx
+
+---
+
+### [E005] ScanHistoryItem.qrType vs type 混淆
+
+**日期**：2026-01-26
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Response: {"success":true,"message":"Processed 0/1 items"}
+Payload: {"type":"batch","data":[{"data":{...}}]}  // 缺少 type 欄位
+```
+
+**根本原因**：
+- `ScanHistoryItem` interface 使用 `qrType` 欄位
+- `sheets.ts` 中錯誤地使用 `item.type`（undefined）
+- 導致 batch 請求中的 items 沒有 type 欄位
+
+**解決方案**：
+```typescript
+// 錯誤
+data: validItems.map(item => ({
+  type: item.type,  // undefined!
+  data: item.data,
+}))
+
+// 正確
+data: validItems.map(item => ({
+  type: item.qrType,  // 使用正確的欄位名
+  data: item.data,
+}))
+```
+
+**預防措施**：
+- 使用 TypeScript 時，善用 IDE 的自動補全
+- 欄位名稱要一致，避免 type/qrType 這種混淆
+
+**相關檔案**：
+- src/utils/sheets.ts
+- src/types/index.ts
+
+---
+
+### [E006] OverconstrainedError 相機參數不支援
+
+**日期**：2026-01-26
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Error getting userMedia, error = OverconstrainedError
+```
+
+**根本原因**：
+- 設定了裝置不支援的相機參數
+- `facingMode: { exact: 'environment' }` 在某些裝置上不支援
+- 4K 解析度 (3840x2160) 不是所有手機都支援
+
+**解決方案**：
+```typescript
+// 錯誤 - 太嚴格的限制
+videoConstraints: {
+  facingMode: { exact: 'environment' },
+  width: { min: 1280, ideal: 3840, max: 4096 },
+}
+
+// 正確 - 使用 ideal 而非 exact/min
+videoConstraints: {
+  facingMode: 'environment',  // 不用 exact
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+}
+```
+
+**預防措施**：
+- 使用 `ideal` 而非 `exact` 或 `min`
+- 測試時要在實際手機上測試，不只是電腦
+
+**相關檔案**：
+- src/components/scanner/Scanner.tsx
 
 ---
 
@@ -212,11 +377,11 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 1 |
-| 已解決 | 1 |
+| 總錯誤數 | 6 |
+| 已解決 | 6 |
 | 進行中 | 0 |
-| 高嚴重度 | 0 |
-| 中嚴重度 | 1 |
+| 高嚴重度 | 3 |
+| 中嚴重度 | 3 |
 | 低嚴重度 | 0 |
 
 ---
@@ -230,4 +395,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-01-26*
+*最後更新：2026-01-26 (晚間)*

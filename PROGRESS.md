@@ -6,9 +6,9 @@
 
 ## 目前狀態
 
-**階段**：功能完善與整合測試
-**完成度**：85%
-**最後更新**：2026-01-26
+**階段**：整合測試與部署
+**完成度**：95%
+**最後更新**：2026-01-26 (晚間)
 
 ---
 
@@ -57,16 +57,54 @@
 - [x] 掃描線動畫
 - [x] 中英文翻譯切換 (i18n)
 
-### Phase 6: 測試與部署 (進行中)
+### Phase 6: 測試與部署 ✅
 
-- [ ] 與 Scouting App 整合測試
-- [ ] Google Apps Script 部署
+- [x] 與 Scouting App 整合測試
+- [x] Google Apps Script 部署
+- [x] 修復 CORS 問題
+- [x] 修復上傳功能
 - [ ] 部署到 Vercel
-- [ ] 文件更新
+- [ ] 移除 debug log
 
 ---
 
 ## 工作日誌
+
+### 2026-01-26 (晚間場)
+
+**完成項目**：
+
+1. **快速掃描模式**
+   - 移除確認對話框，掃描後直接儲存到歷史
+   - 相機持續開啟，不在掃描後暫停
+   - 加入掃描計數器顯示
+   - 防止 2 秒內重複掃描相同 QR
+
+2. **修復相機重啟問題**
+   - 使用 useRef 存儲 onScan/onError callbacks
+   - 移除 useEffect 的 callback dependencies
+   - 相機不再因為 state 更新而重新初始化
+
+3. **修復 Google Sheets 上傳**
+   - 修復 CORS 問題：移除 Content-Type header
+   - 修復 Invalid time value：`item.scanTime` 而非 `item.timestamp`
+   - 修復 batch 上傳：`item.qrType` 而非 `item.type`
+
+4. **相機設定調整**
+   - 修復 OverconstrainedError（4K 解析度不支援）
+   - 目前設定：1080p, fps=30, qrbox=350x350
+
+5. **Google Apps Script 部署**
+   - 執行 initializeSheets() 建立工作表
+   - 測試 testMatchUpload() 成功
+   - 上傳功能已驗證可用
+
+**下一步**：
+- 部署到 Vercel
+- 移除 debug console.log
+- 實際比賽測試
+
+---
 
 ### 2026-01-26 (下午場)
 
@@ -186,9 +224,10 @@ frc-scout-scanner/
 1. ~~修復鏡頭顯示問題~~ ✅
 2. ~~新增中英翻譯切換~~ ✅
 3. ~~完成 Google Apps Script~~ ✅
-4. 部署 Google Apps Script 到 Google Sheets
-5. 與 Scouting App 進行整合測試
+4. ~~部署 Google Apps Script 到 Google Sheets~~ ✅
+5. ~~與 Scouting App 進行整合測試~~ ✅
 6. 部署到 Vercel
+7. 移除 debug console.log
 
 ---
 
@@ -197,7 +236,11 @@ frc-scout-scanner/
 | 問題 | 狀態 | 備註 |
 |------|------|------|
 | React StrictMode 雙重掛載導致鏡頭初始化失敗 | ✅ 已解決 | 使用 ref 追蹤狀態 |
-| 掃描範圍太小 | ✅ 已解決 | 改為 90% viewport |
+| 掃描範圍太小 | ✅ 已解決 | qrbox=350x350 |
+| CORS 問題導致上傳失敗 | ✅ 已解決 | 移除 Content-Type header |
+| 相機掃描後重啟 | ✅ 已解決 | 使用 useRef 存儲 callbacks |
+| batch 上傳缺少 type 欄位 | ✅ 已解決 | 使用 qrType 而非 type |
+| 4K 解析度導致 OverconstrainedError | ✅ 已解決 | 改用 1080p |
 
 ---
 
