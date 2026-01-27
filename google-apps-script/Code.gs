@@ -21,7 +21,7 @@ const CONFIG = {
   // 工作表名稱
   SHEET_MATCH: 'Match Data',
   SHEET_PATH: 'Path Data',
-  SHEET_PIT: 'Pit Scouting',
+  SHEET_PIT: 'Pit Scouting',  // Pit Collect (外部)
 
   // 是否自動合併 Path 到 Match
   AUTO_MERGE_PATH: true,
@@ -79,23 +79,32 @@ const TSV_SCHEMA_PATH = [
 ];
 
 /**
- * Pit Scouting QR - 13 個欄位
- * 對應 SCANNER_INTEGRATION.md 的 TSV_SCHEMA_PIT
+ * Pit Scouting QR - 23 個欄位 (FRC6998 Pit Collect)
  */
 const TSV_SCHEMA_PIT = [
-  'scouterName',   // 0: 偵察員姓名
-  'eventCode',     // 1: 賽事代碼
-  'teamNumber',    // 2: 隊伍號碼
-  'pitDriveTrain', // 3: 底盤類型
-  'pitMotorType',  // 4: 馬達類型
-  'pitLength',     // 5: 機器人長度
-  'pitWidth',      // 6: 機器人寬度
-  'pitWeight',     // 7: 機器人重量
-  'pitCanFuel',    // 8: 能否得 Fuel (0/1)
-  'pitCanTowerL1', // 9: 能否爬 L1 (0/1)
-  'pitCanTowerL2', // 10: 能否爬 L2 (0/1)
-  'pitCanTowerL3', // 11: 能否爬 L3 (0/1)
-  'pitAutoNotes'   // 12: 自動階段備註
+  'teamNumber',      // 0: 隊伍號碼
+  'scouterName',     // 1: 偵察員姓名
+  'chassisType',     // 2: 底盤類型
+  'weight',          // 3: 重量
+  'maxCapacity',     // 4: 最大容量
+  'intake',          // 5: 進料機構
+  'visionHardware',  // 6: 視覺硬體
+  'visionSoftware',  // 7: 視覺軟體
+  'shooting',        // 8: 射擊能力
+  'turret',          // 9: 炮塔功能
+  'startLocation',   // 10: 起始位置
+  'preload',         // 11: 預載數量
+  'autoIntake',      // 12: 自動進料 (0/1)
+  'autoHang',        // 13: 自動懸掛 (0/1)
+  'autoTotal',       // 14: 自動總數
+  'crossMidfield',   // 15: 跨越中場 (0/1)
+  'terrain',         // 16: 地形類型
+  'stability',       // 17: 穩定性 (1-5)
+  'climbLevel',      // 18: 爬升等級
+  'climbPosition',   // 19: 爬升位置
+  'climbTime',       // 20: 爬升時間
+  'photosTaken',     // 21: 已拍照 (0/1)
+  'notes'            // 22: 備註
 ];
 
 /**
@@ -209,6 +218,7 @@ function doPost(e) {
         result = handlePathData(payload.data);
         break;
       case 'pit':
+      case 'pit-external':
         result = handlePitData(payload.data);
         break;
       case 'batch':
@@ -315,15 +325,14 @@ function handlePathData(data) {
 }
 
 /**
- * 處理 Pit Scouting Data
+ * 處理 Pit Scouting Data (FRC6998 Pit Collect)
  */
 function handlePitData(data) {
   const sheet = getOrCreateSheet(CONFIG.SHEET_PIT, SHEET_HEADERS.PIT);
   const uploadTime = new Date().toISOString();
 
-  // 檢查是否已存在相同隊伍的紀錄
-  const pitKey = getPitKey(data);
-  const existingRow = findRowByPitKey(sheet, pitKey);
+  // 檢查是否已存在相同隊伍的紀錄（用 teamNumber 作為 key）
+  const existingRow = findRowByTeamNumber(sheet, data.teamNumber, SHEET_HEADERS.PIT);
 
   if (existingRow > 0) {
     // 更新現有紀錄
@@ -368,6 +377,7 @@ function handleBatchData(items) {
           result = handlePathData(item.data);
           break;
         case 'pit':
+        case 'pit-external':
           result = handlePitData(item.data);
           break;
         default:
@@ -492,13 +502,6 @@ function getMatchKey(data) {
 }
 
 /**
- * 產生 Pit Key
- */
-function getPitKey(data) {
-  return `${data.eventCode || ''}_${data.teamNumber || ''}`;
-}
-
-/**
  * 根據 Match Key 尋找列號
  */
 function findRowByMatchKey(sheet, matchKey) {
@@ -518,16 +521,14 @@ function findRowByMatchKey(sheet, matchKey) {
 }
 
 /**
- * 根據 Pit Key 尋找列號
+ * 根據 Team Number 尋找列號（用於 Pit Scouting）
  */
-function findRowByPitKey(sheet, pitKey) {
+function findRowByTeamNumber(sheet, teamNumber, headers) {
   const data = sheet.getDataRange().getValues();
-  const eventCodeIdx = SHEET_HEADERS.PIT.indexOf('eventCode');
-  const teamNumberIdx = SHEET_HEADERS.PIT.indexOf('teamNumber');
+  const teamNumberIdx = headers.indexOf('teamNumber');
 
   for (let i = 1; i < data.length; i++) {
-    const rowKey = `${data[i][eventCodeIdx]}_${data[i][teamNumberIdx]}`;
-    if (rowKey === pitKey) {
+    if (String(data[i][teamNumberIdx]) === String(teamNumber)) {
       return i + 1;
     }
   }
@@ -622,23 +623,33 @@ function testPathUpload() {
 }
 
 /**
- * 測試 Pit Data 上傳
+ * 測試 Pit Data 上傳 (FRC6998 Pit Collect 格式)
  */
 function testPitUpload() {
   const testData = {
-    scouterName: 'Test User',
-    eventCode: '2026TEST',
     teamNumber: '6998',
-    pitDriveTrain: 'Swerve',
-    pitMotorType: 'NEO',
-    pitLength: '30',
-    pitWidth: '28',
-    pitWeight: '125',
-    pitCanFuel: '1',
-    pitCanTowerL1: '1',
-    pitCanTowerL2: '1',
-    pitCanTowerL3: '0',
-    pitAutoNotes: 'Good auto routine',
+    scouterName: 'Test User',
+    chassisType: 'Swerve',
+    weight: '125',
+    maxCapacity: '5',
+    intake: 'Ground + Source',
+    visionHardware: 'Limelight',
+    visionSoftware: 'PhotonVision',
+    shooting: 'Speaker',
+    turret: 'None',
+    startLocation: 'Center',
+    preload: '1',
+    autoIntake: '1',
+    autoHang: '0',
+    autoTotal: '4',
+    crossMidfield: '1',
+    terrain: 'Chain',
+    stability: '4',
+    climbLevel: 'Harmony',
+    climbPosition: 'Center',
+    climbTime: '8',
+    photosTaken: '1',
+    notes: 'Good robot',
     scanTime: new Date().toISOString()
   };
 
