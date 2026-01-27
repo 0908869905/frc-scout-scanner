@@ -39,7 +39,7 @@ export const TSV_SCHEMA_PATH = [
   'autoPath',
 ] as const;
 
-// Pit Scouting TSV Schema (13 栏位)
+// Pit Scouting TSV Schema (13 栏位) - Scouting PASS
 export const TSV_SCHEMA_PIT = [
   'scouterName',
   'eventCode',
@@ -55,6 +55,41 @@ export const TSV_SCHEMA_PIT = [
   'pitCanTowerL3',
   'pitAutoNotes',
 ] as const;
+
+// Pit External TSV Schema (23 栏位) - FRC6998 Pit Collect
+export const TSV_SCHEMA_PIT_EXTERNAL = [
+  'teamNumber',
+  'scouterName',
+  'chassisType',
+  'weight',
+  'maxCapacity',
+  'intake',
+  'visionHardware',
+  'visionSoftware',
+  'shooting',
+  'turret',
+  'startLocation',
+  'preload',
+  'autoIntake',
+  'autoHang',
+  'autoTotal',
+  'crossMidfield',
+  'terrain',
+  'stability',
+  'climbLevel',
+  'climbPosition',
+  'climbTime',
+  'photosTaken',
+  'notes',
+] as const;
+
+// 导出所有 schema 长度用于类型判断
+export const SCHEMA_LENGTHS = {
+  match: TSV_SCHEMA_MATCH.length,      // 25
+  path: TSV_SCHEMA_PATH.length,        // 4
+  pit: TSV_SCHEMA_PIT.length,          // 13
+  pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 23
+} as const;
 
 // 栏位显示名称（中文）
 export const FIELD_LABELS: Record<string, string> = {

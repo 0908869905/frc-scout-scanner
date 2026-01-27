@@ -15,10 +15,11 @@ export const MATCH_LEVEL_MAP: Record<string, string> = {
 
 // QR 类型颜色（对应 Scouting App 和设计系统）
 export const QR_TYPE_COLORS = {
-  match: '#06b6d4', // cyan-500
-  path: '#f59e0b',  // amber-500
-  pit: '#8b5cf6',   // violet-500
-  unknown: '#64748b', // slate-500
+  match: '#06b6d4',       // cyan-500
+  path: '#f59e0b',        // amber-500
+  pit: '#8b5cf6',         // violet-500
+  'pit-external': '#a855f7', // purple-500
+  unknown: '#64748b',     // slate-500
 } as const;
 
 // QR 类型标签
@@ -26,6 +27,7 @@ export const QR_TYPE_LABELS = {
   match: '比赛资料',
   path: '路径资料',
   pit: 'Pit 资料',
+  'pit-external': 'Pit 资料 (外部)',
   unknown: '未知格式',
 } as const;
 

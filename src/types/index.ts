@@ -6,7 +6,6 @@ export * from './common';
 export * from './match';
 export * from './path';
 export * from './pit';
-export * from './pit-external';
 
 // 扫描历史记录项目
 export interface ScanHistoryItem {

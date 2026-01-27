@@ -1,15 +1,11 @@
 /**
  * FRC Scout Scanner - QR 解码工具
- * 支援两种格式：
- * 1. TSV 格式 (Scouting PASS) - Match, Path, Pit
- * 2. JSON 格式 (外部 Pit Collect) - pit-external
+ * 所有格式都是 TSV (Tab 分隔) + LZ-String Base64 压缩
  */
 
 import LZString from 'lz-string';
-import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT } from '../constants';
-import { PIT_EXTERNAL_KEY_MAP, PIT_EXTERNAL_SCHEMA } from '../types/pit-external';
+import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL } from '../constants';
 import type { QRType, DecodeResult, PathPoint } from '../types';
-import type { PitExternalRaw } from '../types/pit-external';
 
 /**
  * 根据栏位数量判断 QR 类型
@@ -17,72 +13,18 @@ import type { PitExternalRaw } from '../types/pit-external';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';
-  if (length === TSV_SCHEMA_PATH.length) return 'path';
-  if (length === TSV_SCHEMA_PIT.length) return 'pit';
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 25
+  if (length === TSV_SCHEMA_PATH.length) return 'path';             // 4
+  if (length === TSV_SCHEMA_PIT.length) return 'pit';               // 13
+  if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external'; // 23
 
   return 'unknown';
-}
-
-/**
- * 检测解压后的内容是 JSON 还是 TSV
- */
-function isJsonFormat(content: string): boolean {
-  const trimmed = content.trim();
-  return trimmed.startsWith('{') && trimmed.endsWith('}');
-}
-
-/**
- * 解码外部 Pit Collect 的 JSON 格式
- */
-function decodePitExternalJson(jsonStr: string): DecodeResult {
-  const raw: PitExternalRaw = JSON.parse(jsonStr);
-
-  // 将缩写 key 转换为完整名称
-  const data: Record<string, string> = {};
-
-  // 遍历所有 schema 栏位
-  PIT_EXTERNAL_SCHEMA.forEach(fullKey => {
-    // 找到对应的缩写 key
-    const shortKey = (Object.keys(PIT_EXTERNAL_KEY_MAP) as Array<keyof PitExternalRaw>)
-      .find(k => PIT_EXTERNAL_KEY_MAP[k] === fullKey);
-
-    if (shortKey && shortKey in raw) {
-      const value = raw[shortKey];
-      // 转换为字串格式
-      if (typeof value === 'boolean') {
-        data[fullKey] = value ? '1' : '0';
-      } else if (typeof value === 'number') {
-        // 0/1 布林值转换
-        if (shortKey === 'auInt' || shortKey === 'auHng' || shortKey === 'mid' || shortKey === 'ph') {
-          data[fullKey] = value === 1 ? '1' : '0';
-        } else {
-          data[fullKey] = String(value);
-        }
-      } else {
-        data[fullKey] = value ?? '';
-      }
-    } else {
-      data[fullKey] = '';
-    }
-  });
-
-  return {
-    type: 'pit-external',
-    data,
-    raw: Object.values(data),
-    timestamp: Date.now(),
-  };
 }
 
 /**
  * 解码 QR Code 内容
  * @param qrContent - QR Code 扫描到的原始内容（LZ-String Base64 压缩）
  * @returns 解码结果
- *
- * 支援格式：
- * 1. TSV 格式 (Scouting PASS) - 用 Tab 分隔的栏位
- * 2. JSON 格式 (外部 Pit Collect) - JSON 物件
  */
 export function decodeQR(qrContent: string): DecodeResult {
   // 解压缩
@@ -92,17 +34,7 @@ export function decodeQR(qrContent: string): DecodeResult {
     throw new Error('无法解压 QR 资料，可能是无效的格式');
   }
 
-  // 检测是 JSON 还是 TSV 格式
-  if (isJsonFormat(decompressed)) {
-    // JSON 格式 = 外部 Pit Collect
-    try {
-      return decodePitExternalJson(decompressed);
-    } catch {
-      throw new Error('无法解析 JSON 格式的 Pit 资料');
-    }
-  }
-
-  // TSV 格式 = Scouting PASS
+  // TSV 格式
   const values = decompressed.split('\t');
   const type = detectQRType(values);
 
@@ -117,6 +49,9 @@ export function decodeQR(qrContent: string): DecodeResult {
       break;
     case 'pit':
       schema = TSV_SCHEMA_PIT;
+      break;
+    case 'pit-external':
+      schema = TSV_SCHEMA_PIT_EXTERNAL;
       break;
     default:
       // 未知类型，使用索引作为栏位名
