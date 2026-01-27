@@ -3,7 +3,9 @@
  */
 
 // QR 资料类型
-export type QRType = 'match' | 'path' | 'pit' | 'unknown';
+// pit = 你的 Scouting PASS (TSV 格式)
+// pit-external = 外部 Pit Collect (JSON 格式)
+export type QRType = 'match' | 'path' | 'pit' | 'pit-external' | 'unknown';
 
 // 比赛等级
 export type MatchLevel = 'P' | 'QM' | 'PO' | 'X';

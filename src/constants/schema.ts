@@ -88,7 +88,7 @@ export const FIELD_LABELS: Record<string, string> = {
   // Path Data
   autoPath: '自动路径',
 
-  // Pit Data
+  // Pit Data (你的 Scouting PASS)
   pitDriveTrain: '驱动系统',
   pitMotorType: '马达类型',
   pitLength: '长度',
@@ -99,4 +99,27 @@ export const FIELD_LABELS: Record<string, string> = {
   pitCanTowerL2: '可爬 L2',
   pitCanTowerL3: '可爬 L3',
   pitAutoNotes: '自动备注',
+
+  // Pit External Data (外部 Pit Collect)
+  chassisType: '底盘类型',
+  weight: '重量',
+  maxCapacity: '最大容量',
+  intake: '进料机构',
+  visionHardware: '视觉硬体',
+  visionSoftware: '视觉软体',
+  shooting: '射击能力',
+  turret: '炮塔功能',
+  startLocation: '起始位置',
+  preload: '预载数量',
+  autoIntake: '自动进料',
+  autoHang: '自动悬挂',
+  autoTotal: '自动总数',
+  crossMidfield: '跨越中场',
+  terrain: '地形类型',
+  stability: '稳定性',
+  climbLevel: '爬升等级',
+  climbPosition: '爬升位置',
+  climbTime: '爬升时间',
+  photosTaken: '已拍照',
+  notes: '备注',
 };
