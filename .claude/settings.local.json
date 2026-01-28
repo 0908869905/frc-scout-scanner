@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__google-sota-2026__ask_gemini_3",
+      "Bash(gh repo view:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm run build:*)",
+      "Bash(dir /O:-D D:frc-scout-scannerdist)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

@@ -2,31 +2,34 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (24 栏位) - v1.1.0
+// Match Data TSV Schema (21 栏位) - v1.1.0
+// 必须与 Scouting PASS 的 constants.ts 保持一致
 export const TSV_SCHEMA_MATCH = [
+  // PreMatch (6)
   'scouterName',
   'eventCode',
   'matchLevel',
   'matchNumber',
   'alliance',           // R1/R2/R3/B1/B2/B3
   'teamNumber',
+  // Auto (3)
   'autoClimbStatus',
   'autoClimbTime',
   'autoClimbSide',      // None/Left/Center/Right
+  // Teleop (6)
   'teleClimbStatus',
   'teleClimbTime',
   'teleClimbSide',      // None/Left/Center/Right
   'bumpTrenchCount',
   'fuelDroppedOnBumpCount',
+  // Penalty (3)
   'penaltyCount',
-  'minorPenalty',       // 原 yellowCard
-  'majorPenalty',       // 原 redCard
+  'minorPenalty',
+  'majorPenalty',
+  // PostMatch (4)
   'robotDied',
   'almostTipped',
   'ridingOnBall',
-  'defenseRating',
-  'driverSkill',
-  'speedRating',
   'comments',
 ] as const;
 
@@ -84,7 +87,7 @@ export const TSV_SCHEMA_PIT_EXTERNAL = [
 
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
-  match: TSV_SCHEMA_MATCH.length,      // 24
+  match: TSV_SCHEMA_MATCH.length,      // 21
   path: TSV_SCHEMA_PATH.length,        // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 23
@@ -92,7 +95,7 @@ export const SCHEMA_LENGTHS = {
 
 // 栏位显示名称（中文）- v1.1.0 更新
 export const FIELD_LABELS: Record<string, string> = {
-  // Match Data (v1.1.0)
+  // Match Data (v1.1.0) - 21 欄位
   scouterName: '记录员',
   eventCode: '赛事代码',
   matchLevel: '比赛等级',
@@ -101,21 +104,18 @@ export const FIELD_LABELS: Record<string, string> = {
   teamNumber: '队伍编号',
   autoClimbStatus: '自动爬升状态',
   autoClimbTime: '自动爬升时间',
-  autoClimbSide: '自动爬升侧',  // 新增
+  autoClimbSide: '自动爬升侧',
   teleClimbStatus: '手动爬升状态',
   teleClimbTime: '手动爬升时间',
-  teleClimbSide: '手动爬升侧',  // 新增
+  teleClimbSide: '手动爬升侧',
   bumpTrenchCount: '跨越次数',
-  fuelDroppedOnBumpCount: '掉落次数',  // 改名
+  fuelDroppedOnBumpCount: '掉落次数',
   penaltyCount: '犯规次数',
-  minorPenalty: '轻微犯规',    // 原 yellowCard
-  majorPenalty: '重大犯规',    // 原 redCard
+  minorPenalty: '轻微犯规',
+  majorPenalty: '重大犯规',
   robotDied: '机器人故障',
   almostTipped: '差点翻倒',
   ridingOnBall: '骑球',
-  defenseRating: '防守评分',
-  driverSkill: '驾驶技术',
-  speedRating: '速度评分',
   comments: '评论',
 
   // Path Data

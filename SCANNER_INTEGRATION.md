@@ -167,10 +167,7 @@ x1,y1|x2,y2|x3,y3|...
 | 17 | `robotDied` | boolean | 機器人故障/倒下 | `1` 或 `0` |
 | 18 | `almostTipped` | boolean | 差點傾倒 | `1` 或 `0` |
 | 19 | `ridingOnBall` | boolean | 騎在球上 | `1` 或 `0` |
-| 20 | `defenseRating` | number | 防守評分 (0-5) | `3` |
-| 21 | `driverSkill` | number | 駕駛技術評分 (0-5) | `4` |
-| 22 | `speedRating` | number | 速度評分 (0-5) | `4` |
-| 23 | `comments` | string | 備註 | `"Very fast robot"` |
+| 20 | `comments` | string | 備註 | `"Very fast robot"` |
 
 ### Auto Path QR（TSV_SCHEMA_PATH）
 
@@ -239,14 +236,13 @@ Pit 偵察使用不同的 schema，共 13 個欄位：
 ```typescript
 import LZString from 'lz-string';
 
-// TSV Schema 定義（必須與 Scouting PASS 一致）
+// TSV Schema 定義（必須與 Scouting PASS 一致）- 21 欄位
 const TSV_SCHEMA_MATCH = [
   'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
   'autoClimbStatus', 'autoClimbTime', 'autoClimbSide',
   'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
   'penaltyCount', 'minorPenalty', 'majorPenalty',
   'robotDied', 'almostTipped', 'ridingOnBall',
-  'defenseRating', 'driverSkill', 'speedRating',
   'comments'
 ];
 
@@ -321,7 +317,6 @@ TSV_SCHEMA_MATCH = [
     'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
     'penaltyCount', 'minorPenalty', 'majorPenalty',
     'robotDied', 'almostTipped', 'ridingOnBall',
-    'defenseRating', 'driverSkill', 'speedRating',
     'comments'
 ]
 
@@ -385,7 +380,6 @@ let TSV_SCHEMA_MATCH = [
     "teleClimbStatus", "teleClimbTime", "teleClimbSide", "bumpTrenchCount", "fuelDroppedOnBumpCount",
     "penaltyCount", "minorPenalty", "majorPenalty",
     "robotDied", "almostTipped", "ridingOnBall",
-    "defenseRating", "driverSkill", "speedRating",
     "comments"
 ]
 
