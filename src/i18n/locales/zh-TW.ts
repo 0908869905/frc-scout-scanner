@@ -7,6 +7,7 @@ export const zhTW = {
   nav: {
     scan: '掃描',
     history: '歷史',
+    path: '路徑',
     settings: '設定',
   },
 
@@ -141,9 +142,12 @@ export const zhTW = {
     autoFuel: '自動燃料',
     autoClimbStatus: '自動爬升',
     autoClimbTime: '自動爬升時間',
-    teleFuel: '遙控燃料',
+    autoClimbSide: '自動爬升側',
+    autoClimbPosition: '自動爬升位置',
     teleClimbStatus: '遙控爬升',
     teleClimbTime: '遙控爬升時間',
+    teleClimbSide: '遙控爬升側',
+    teleClimbPosition: '遙控爬升位置',
     bumpTrenchCount: '撞溝次數',
     fuelDroppedOnBump: '撞擊掉落',
     penaltyCount: '罰球次數',

@@ -36,8 +36,12 @@ const CONFIG = {
 // ============================================
 
 /**
- * Match Data QR - 21 個欄位（不含 autoPath）
+ * Match Data QR - 22 個欄位（不含 autoPath）
  * 必須與 Scouting PASS 的 constants.ts 保持一致
+ * v1.2.0 變更：
+ * - 移除 penaltyCount
+ * - 新增 autoClimbPosition, teleClimbPosition
+ * - minorPenalty/majorPenalty 改為計數器（number）
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -47,25 +51,27 @@ const TSV_SCHEMA_MATCH = [
   'matchNumber',          // 3: 場次編號
   'alliance',             // 4: 聯盟位置 (R1/R2/R3/B1/B2/B3)
   'teamNumber',           // 5: 隊伍號碼
-  // Auto (3)
+  // Auto (4)
   'autoClimbStatus',      // 6: 自動爬塔狀態
   'autoClimbTime',        // 7: 自動爬塔時間（秒）
-  'autoClimbSide',        // 8: 自動爬塔側 (None/Left/Center/Right)
-  // Teleop (6)
-  'teleClimbStatus',      // 9: 手動爬塔狀態
-  'teleClimbTime',        // 10: 手動爬塔時間（秒）
-  'teleClimbSide',        // 11: 手動爬塔側 (None/Left/Center/Right)
-  'bumpTrenchCount',      // 12: 跨越 Bump & Trench 次數
-  'fuelDroppedOnBumpCount', // 13: 穿越 Bump 時掉落 Fuel 次數
-  // Penalty (3)
-  'penaltyCount',         // 14: 犯規次數
-  'minorPenalty',         // 15: 輕微犯規 (0/1)
-  'majorPenalty',         // 16: 重大犯規 (0/1)
+  'autoClimbSide',        // 8: 自動爬塔側 (None/Left/Right)
+  'autoClimbPosition',    // 9: 自動爬塔位置 (None/Left/Center/Right)
+  // Teleop - Bump & Fuel (2)
+  'bumpTrenchCount',      // 10: 跨越 Bump & Trench 次數
+  'fuelDroppedOnBumpCount', // 11: 穿越 Bump 時掉落 Fuel 次數
+  // Teleop - Penalty (2) - 計數器
+  'minorPenalty',         // 12: 輕微犯規次數 (number)
+  'majorPenalty',         // 13: 重大犯規次數 (number)
+  // Teleop - Climb (4)
+  'teleClimbStatus',      // 14: 手動爬塔狀態
+  'teleClimbTime',        // 15: 手動爬塔時間（秒）
+  'teleClimbSide',        // 16: 手動爬塔側 (None/Left/Right)
+  'teleClimbPosition',    // 17: 手動爬塔位置 (None/Left/Center/Right)
   // PostMatch (4)
-  'robotDied',            // 17: 機器人故障 (0/1)
-  'almostTipped',         // 18: 差點傾倒 (0/1)
-  'ridingOnBall',         // 19: 騎在球上 (0/1)
-  'comments'              // 20: 備註
+  'robotDied',            // 18: 機器人故障 (0/1)
+  'almostTipped',         // 19: 差點傾倒 (0/1)
+  'ridingOnBall',         // 20: 騎在球上 (0/1)
+  'comments'              // 21: 備註
 ];
 
 /**
@@ -579,27 +585,24 @@ function testMatchUpload() {
     eventCode: '2026TEST',
     matchLevel: 'QM',
     matchNumber: '1',
-    alliance: 'Red',
+    alliance: 'R1',
     teamNumber: '6998',
-    autoFuel: '3',
     autoClimbStatus: 'Level1',
     autoClimbTime: '5',
-    teleFuel: '12',
+    autoClimbSide: 'Left',
+    autoClimbPosition: 'Center',
+    bumpTrenchCount: '2',
+    fuelDroppedOnBumpCount: '0',
+    minorPenalty: '1',
+    majorPenalty: '0',
     teleClimbStatus: 'Level2',
     teleClimbTime: '8',
-    bumpTrenchCount: '2',
-    fuelDroppedOnBump: '0',
-    penaltyCount: '0',
-    yellowCard: '0',
-    redCard: '0',
+    teleClimbSide: 'Right',
+    teleClimbPosition: 'Left',
     robotDied: '0',
     almostTipped: '0',
     ridingOnBall: '0',
-    defenseRating: '3',
-    driverSkill: '4',
-    speedRating: '4',
     comments: 'Test comment',
-    subjectiveNotes: 'Test notes',
     scanTime: new Date().toISOString()
   };
 

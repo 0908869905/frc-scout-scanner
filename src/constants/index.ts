@@ -42,6 +42,7 @@ export const STORAGE_KEYS = {
 export const ROUTES = {
   SCAN: '/',
   HISTORY: '/history',
+  PATH_VIEWER: '/path',
   SETTINGS: '/settings',
 } as const;
 

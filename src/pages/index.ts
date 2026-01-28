@@ -5,3 +5,4 @@
 export * from './ScanPage';
 export * from './HistoryPage';
 export * from './SettingsPage';
+export * from './PathViewerPage';

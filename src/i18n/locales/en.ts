@@ -9,6 +9,7 @@ export const en: Translations = {
   nav: {
     scan: 'Scan',
     history: 'History',
+    path: 'Path',
     settings: 'Settings',
   },
 
@@ -143,9 +144,12 @@ export const en: Translations = {
     autoFuel: 'Auto Fuel',
     autoClimbStatus: 'Auto Climb',
     autoClimbTime: 'Auto Climb Time',
-    teleFuel: 'Tele Fuel',
+    autoClimbSide: 'Auto Climb Side',
+    autoClimbPosition: 'Auto Climb Position',
     teleClimbStatus: 'Tele Climb',
     teleClimbTime: 'Tele Climb Time',
+    teleClimbSide: 'Tele Climb Side',
+    teleClimbPosition: 'Tele Climb Position',
     bumpTrenchCount: 'Bump Count',
     fuelDroppedOnBump: 'Dropped on Bump',
     penaltyCount: 'Penalties',

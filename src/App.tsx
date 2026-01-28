@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout';
 import { ToastContainer } from './components/ui/Toast';
-import { ScanPage, HistoryPage, SettingsPage } from './pages';
+import { ScanPage, HistoryPage, SettingsPage, PathViewerPage } from './pages';
 import { loadHistory, saveHistory, generateId } from './utils/storage';
 import { ROUTES } from './constants';
 import { I18nProvider } from './i18n';
@@ -92,6 +92,10 @@ export default function App() {
                   onShowToast={showToast}
                 />
               }
+            />
+            <Route
+              path={ROUTES.PATH_VIEWER}
+              element={<PathViewerPage />}
             />
             <Route
               path={ROUTES.SETTINGS}

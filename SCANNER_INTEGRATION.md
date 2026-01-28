@@ -40,7 +40,7 @@ Scouting PASS 在每場比賽結束後會產生 **兩個 QR Code**：
 
 **識別方式**：
 - 顏色：青色背景白色前景
-- 欄位數量：21 個欄位（Match 模式）
+- 欄位數量：22 個欄位（Match 模式）
 
 ### 2. Auto Path QR（路徑資料）
 
@@ -143,7 +143,7 @@ x1,y1|x2,y2|x3,y3|...
 
 ### Match Data QR（TSV_SCHEMA_MATCH）
 
-共 21 個欄位，按以下順序排列：
+共 22 個欄位，按以下順序排列：
 
 | 索引 | 欄位名稱 | 類型 | 說明 | 範例值 |
 |------|----------|------|------|--------|
@@ -155,19 +155,20 @@ x1,y1|x2,y2|x3,y3|...
 | 5 | `teamNumber` | string | 隊伍號碼 | `"6998"` |
 | 6 | `autoClimbStatus` | string | 自動爬塔狀態 | `"None"`, `"Level1"`, `"Failed"` |
 | 7 | `autoClimbTime` | number | 自動爬塔時間（秒） | `5.23` |
-| 8 | `autoClimbSide` | string | 自動爬塔側 | `"None"`, `"Left"`, `"Center"`, `"Right"` |
-| 9 | `teleClimbStatus` | string | 手動爬塔狀態 | `"None"`, `"Level1"`, `"Level2"`, `"Level3"`, `"Failed"` |
-| 10 | `teleClimbTime` | number | 手動爬塔時間（秒） | `8.45` |
-| 11 | `teleClimbSide` | string | 手動爬塔側 | `"None"`, `"Left"`, `"Center"`, `"Right"` |
-| 12 | `bumpTrenchCount` | number | 跨越 Bump & Trench 次數 | `2` |
-| 13 | `fuelDroppedOnBumpCount` | number | 穿越 Bump 時掉落 Fuel 次數 | `1` |
-| 14 | `penaltyCount` | number | 犯規次數 | `1` |
-| 15 | `minorPenalty` | boolean | 輕微犯規 | `1` 或 `0` |
-| 16 | `majorPenalty` | boolean | 重大犯規 | `1` 或 `0` |
-| 17 | `robotDied` | boolean | 機器人故障/倒下 | `1` 或 `0` |
-| 18 | `almostTipped` | boolean | 差點傾倒 | `1` 或 `0` |
-| 19 | `ridingOnBall` | boolean | 騎在球上 | `1` 或 `0` |
-| 20 | `comments` | string | 備註 | `"Very fast robot"` |
+| 8 | `autoClimbSide` | string | 自動爬塔側（進入方向） | `"None"`, `"Left"`, `"Right"` |
+| 9 | `autoClimbPosition` | string | 自動爬塔位置（哪根管） | `"None"`, `"Left"`, `"Center"`, `"Right"` |
+| 10 | `bumpTrenchCount` | number | 跨越 Bump & Trench 次數 | `2` |
+| 11 | `fuelDroppedOnBumpCount` | number | 穿越 Bump 時掉落 Fuel 次數 | `1` |
+| 12 | `minorPenalty` | number | 輕微犯規次數（計數器） | `0`, `1`, `2`... |
+| 13 | `majorPenalty` | number | 重大犯規次數（計數器） | `0`, `1`, `2`... |
+| 14 | `teleClimbStatus` | string | 手動爬塔狀態 | `"None"`, `"Level1"`, `"Level2"`, `"Level3"`, `"Failed"` |
+| 15 | `teleClimbTime` | number | 手動爬塔時間（秒） | `8.45` |
+| 16 | `teleClimbSide` | string | 手動爬塔側（進入方向） | `"None"`, `"Left"`, `"Right"` |
+| 17 | `teleClimbPosition` | string | 手動爬塔位置（哪根管） | `"None"`, `"Left"`, `"Center"`, `"Right"` |
+| 18 | `robotDied` | boolean | 機器人故障/倒下 | `1` 或 `0` |
+| 19 | `almostTipped` | boolean | 差點傾倒 | `1` 或 `0` |
+| 20 | `ridingOnBall` | boolean | 騎在球上 | `1` 或 `0` |
+| 21 | `comments` | string | 備註 | `"Very fast robot"` |
 
 ### Auto Path QR（TSV_SCHEMA_PATH）
 
@@ -219,13 +220,20 @@ Pit 偵察使用不同的 schema，共 13 個欄位：
 - 紅方：`R1`, `R2`, `R3`
 - 藍方：`B1`, `B2`, `B3`
 
-### climbSide 值
+### climbSide 值（進入方向）
 
-攀爬側選項：
+攀爬側選項（機器人從哪一側進入）：
 - `None` - 未攀爬/無選擇
-- `Left` - 左側
-- `Center` - 中間
-- `Right` - 右側
+- `Left` - 左側進入
+- `Right` - 右側進入
+
+### climbPosition 值（攀爬位置）
+
+攀爬位置選項（選擇哪根管子）：
+- `None` - 未攀爬/無選擇
+- `Left` - 左邊的管子
+- `Center` - 中間的管子
+- `Right` - 右邊的管子
 
 ---
 
@@ -236,12 +244,13 @@ Pit 偵察使用不同的 schema，共 13 個欄位：
 ```typescript
 import LZString from 'lz-string';
 
-// TSV Schema 定義（必須與 Scouting PASS 一致）- 21 欄位
+// TSV Schema 定義（必須與 Scouting PASS 一致）- 22 欄位
 const TSV_SCHEMA_MATCH = [
   'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
-  'autoClimbStatus', 'autoClimbTime', 'autoClimbSide',
-  'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
-  'penaltyCount', 'minorPenalty', 'majorPenalty',
+  'autoClimbStatus', 'autoClimbTime', 'autoClimbSide', 'autoClimbPosition',
+  'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+  'minorPenalty', 'majorPenalty',
+  'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'teleClimbPosition',
   'robotDied', 'almostTipped', 'ridingOnBall',
   'comments'
 ];
@@ -313,9 +322,10 @@ import lzstring
 
 TSV_SCHEMA_MATCH = [
     'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
-    'autoClimbStatus', 'autoClimbTime', 'autoClimbSide',
-    'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
-    'penaltyCount', 'minorPenalty', 'majorPenalty',
+    'autoClimbStatus', 'autoClimbTime', 'autoClimbSide', 'autoClimbPosition',
+    'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+    'minorPenalty', 'majorPenalty',
+    'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'teleClimbPosition',
     'robotDied', 'almostTipped', 'ridingOnBall',
     'comments'
 ]
@@ -376,9 +386,10 @@ import LZString
 
 let TSV_SCHEMA_MATCH = [
     "scouterName", "eventCode", "matchLevel", "matchNumber", "alliance", "teamNumber",
-    "autoClimbStatus", "autoClimbTime", "autoClimbSide",
-    "teleClimbStatus", "teleClimbTime", "teleClimbSide", "bumpTrenchCount", "fuelDroppedOnBumpCount",
-    "penaltyCount", "minorPenalty", "majorPenalty",
+    "autoClimbStatus", "autoClimbTime", "autoClimbSide", "autoClimbPosition",
+    "bumpTrenchCount", "fuelDroppedOnBumpCount",
+    "minorPenalty", "majorPenalty",
+    "teleClimbStatus", "teleClimbTime", "teleClimbSide", "teleClimbPosition",
     "robotDied", "almostTipped", "ridingOnBall",
     "comments"
 ]
@@ -435,7 +446,7 @@ A: 因為 autoPath 資料可能很長（幾百個座標點），如果包含在�
 A: 解壓縮後計算欄位數量：
 - 4 個欄位 → Auto Path QR
 - 13 個欄位 → Pit Scouting QR
-- 21+ 個欄位 → Match Data QR
+- 22 個欄位 → Match Data QR
 
 或者檢查第一個欄位：
 - 如果第一個欄位是 `eventCode` 開頭的賽事代碼（如 `2026MSLR`）→ 可能是 Path QR
@@ -470,13 +481,28 @@ A: 2026 賽季使用位置編號格式：
 - 紅方位置：`R1`, `R2`, `R3`
 - 藍方位置：`B1`, `B2`, `B3`
 
-### Q8: climbSide 欄位是什麼意思？
+### Q8: climbSide 和 climbPosition 有什麼區別？
 
-A: 攀爬側記錄機器人攀爬時的位置（左/中/右），用於分析攀爬策略：
+A: 這兩個欄位記錄不同的攀爬資訊：
+
+**climbSide（攀爬側 / 進入方向）**：記錄機器人從哪一側進入攀爬區域
 - `None` - 未攀爬或未記錄
-- `Left` - 左側攀爬
-- `Center` - 中間攀爬
-- `Right` - 右側攀爬
+- `Left` - 從左側進入
+- `Right` - 從右側進入
+
+**climbPosition（攀爬位置 / 選擇哪根管）**：記錄機器人攀爬哪根管子
+- `None` - 未攀爬或未記錄
+- `Left` - 左邊的管子
+- `Center` - 中間的管子
+- `Right` - 右邊的管子
+
+### Q9: minorPenalty 和 majorPenalty 的類型是什麼？
+
+A: v1.2.0 版本起，這兩個欄位從 boolean（開關）改為 number（計數器）：
+- `0` - 沒有犯規
+- `1`, `2`, `3`... - 犯規次數
+
+舊版的 `penaltyCount` 欄位已移除，由 `minorPenalty + majorPenalty` 取代。
 
 ---
 
@@ -484,6 +510,7 @@ A: 攀爬側記錄機器人攀爬時的位置（左/中/右），用於分析攀
 
 | 版本 | 日期 | 變更內容 |
 |------|------|----------|
+| 1.2.0 | 2026-01-28 | **重大變更**：新增 autoClimbPosition/teleClimbPosition 欄位、移除 penaltyCount 欄位、minorPenalty/majorPenalty 改為計數器（number）、climbSide 選項簡化為 None/Left/Right、欄位數量從 21 改為 22 |
 | 1.1.0 | 2026-01-28 | **重大變更**：移除 autoFuel/teleFuel 欄位、alliance 改為 R1-R3/B1-B3 格式、新增 autoClimbSide/teleClimbSide 欄位、fuelDroppedOnBump 改為 fuelDroppedOnBumpCount (次數)、yellowCard/redCard 改為 minorPenalty/majorPenalty、移除 subjectiveNotes 欄位、Climb Time 改為持續計時 |
 | 1.0.0 | 2026-01-26 | 初始版本，支援 Match/Pit/Path 三種 QR Code |
 
