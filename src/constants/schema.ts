@@ -2,7 +2,7 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (22 栏位) - v1.2.0
+// Match Data TSV Schema (20 栏位) - v1.3.0
 // 必须与 Scouting PASS 的 constants.ts 保持一致
 export const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -12,22 +12,20 @@ export const TSV_SCHEMA_MATCH = [
   'matchNumber',
   'alliance',           // R1/R2/R3/B1/B2/B3
   'teamNumber',
-  // Auto (4)
+  // Auto (3)
   'autoClimbStatus',
   'autoClimbTime',
-  'autoClimbSide',      // None/Left/Right
-  'autoClimbPosition',  // None/Left/Center/Right
+  'autoClimbPosition',  // LeftSide/Left/Center/Right/RightSide
   // Teleop - Bump & Fuel (2)
   'bumpTrenchCount',
   'fuelDroppedOnBumpCount',
-  // Teleop - Penalty (2) - 現在是計數器
+  // Teleop - Penalty (2) - 計數器
   'minorPenalty',       // number (計數器)
   'majorPenalty',       // number (計數器)
-  // Teleop - Climb (4)
+  // Teleop - Climb (3)
   'teleClimbStatus',
   'teleClimbTime',
-  'teleClimbSide',      // None/Left/Right
-  'teleClimbPosition',  // None/Left/Center/Right
+  'teleClimbPosition',  // LeftSide/Left/Center/Right/RightSide
   // PostMatch (4)
   'robotDied',
   'almostTipped',
@@ -89,15 +87,15 @@ export const TSV_SCHEMA_PIT_EXTERNAL = [
 
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
-  match: TSV_SCHEMA_MATCH.length,      // 22
+  match: TSV_SCHEMA_MATCH.length,      // 20
   path: TSV_SCHEMA_PATH.length,        // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 23
 } as const;
 
-// 栏位显示名称（中文）- v1.2.0 更新
+// 栏位显示名称（中文）- v1.3.0 更新
 export const FIELD_LABELS: Record<string, string> = {
-  // Match Data (v1.2.0) - 22 欄位
+  // Match Data (v1.3.0) - 20 欄位
   scouterName: '记录员',
   eventCode: '赛事代码',
   matchLevel: '比赛等级',
@@ -106,16 +104,14 @@ export const FIELD_LABELS: Record<string, string> = {
   teamNumber: '队伍编号',
   autoClimbStatus: '自动爬升状态',
   autoClimbTime: '自动爬升时间',
-  autoClimbSide: '自动爬升侧',
-  autoClimbPosition: '自动爬升位置',
+  autoClimbPosition: '自动爬升位置',  // LeftSide/Left/Center/Right/RightSide
   bumpTrenchCount: '跨越次数',
   fuelDroppedOnBumpCount: '掉落次数',
   minorPenalty: '轻微犯规',    // 计数器
   majorPenalty: '重大犯规',    // 计数器
   teleClimbStatus: '手动爬升状态',
   teleClimbTime: '手动爬升时间',
-  teleClimbSide: '手动爬升侧',
-  teleClimbPosition: '手动爬升位置',
+  teleClimbPosition: '手动爬升位置',  // LeftSide/Left/Center/Right/RightSide
   robotDied: '机器人故障',
   almostTipped: '差点翻倒',
   ridingOnBall: '骑球',

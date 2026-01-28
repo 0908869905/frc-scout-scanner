@@ -36,12 +36,11 @@ const CONFIG = {
 // ============================================
 
 /**
- * Match Data QR - 22 個欄位（不含 autoPath）
+ * Match Data QR - 20 個欄位（不含 autoPath）
  * 必須與 Scouting PASS 的 constants.ts 保持一致
- * v1.2.0 變更：
- * - 移除 penaltyCount
- * - 新增 autoClimbPosition, teleClimbPosition
- * - minorPenalty/majorPenalty 改為計數器（number）
+ * v1.3.0 變更：
+ * - 移除 autoClimbSide, teleClimbSide
+ * - climbPosition 改為 5 選項 (LeftSide/Left/Center/Right/RightSide)
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -51,27 +50,25 @@ const TSV_SCHEMA_MATCH = [
   'matchNumber',          // 3: 場次編號
   'alliance',             // 4: 聯盟位置 (R1/R2/R3/B1/B2/B3)
   'teamNumber',           // 5: 隊伍號碼
-  // Auto (4)
+  // Auto (3)
   'autoClimbStatus',      // 6: 自動爬塔狀態
   'autoClimbTime',        // 7: 自動爬塔時間（秒）
-  'autoClimbSide',        // 8: 自動爬塔側 (None/Left/Right)
-  'autoClimbPosition',    // 9: 自動爬塔位置 (None/Left/Center/Right)
+  'autoClimbPosition',    // 8: 自動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
   // Teleop - Bump & Fuel (2)
-  'bumpTrenchCount',      // 10: 跨越 Bump & Trench 次數
-  'fuelDroppedOnBumpCount', // 11: 穿越 Bump 時掉落 Fuel 次數
+  'bumpTrenchCount',      // 9: 跨越 Bump & Trench 次數
+  'fuelDroppedOnBumpCount', // 10: 穿越 Bump 時掉落 Fuel 次數
   // Teleop - Penalty (2) - 計數器
-  'minorPenalty',         // 12: 輕微犯規次數 (number)
-  'majorPenalty',         // 13: 重大犯規次數 (number)
-  // Teleop - Climb (4)
-  'teleClimbStatus',      // 14: 手動爬塔狀態
-  'teleClimbTime',        // 15: 手動爬塔時間（秒）
-  'teleClimbSide',        // 16: 手動爬塔側 (None/Left/Right)
-  'teleClimbPosition',    // 17: 手動爬塔位置 (None/Left/Center/Right)
+  'minorPenalty',         // 11: 輕微犯規次數 (number)
+  'majorPenalty',         // 12: 重大犯規次數 (number)
+  // Teleop - Climb (3)
+  'teleClimbStatus',      // 13: 手動爬塔狀態
+  'teleClimbTime',        // 14: 手動爬塔時間（秒）
+  'teleClimbPosition',    // 15: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
   // PostMatch (4)
-  'robotDied',            // 18: 機器人故障 (0/1)
-  'almostTipped',         // 19: 差點傾倒 (0/1)
-  'ridingOnBall',         // 20: 騎在球上 (0/1)
-  'comments'              // 21: 備註
+  'robotDied',            // 16: 機器人故障 (0/1)
+  'almostTipped',         // 17: 差點傾倒 (0/1)
+  'ridingOnBall',         // 18: 騎在球上 (0/1)
+  'comments'              // 19: 備註
 ];
 
 /**
@@ -589,7 +586,6 @@ function testMatchUpload() {
     teamNumber: '6998',
     autoClimbStatus: 'Level1',
     autoClimbTime: '5',
-    autoClimbSide: 'Left',
     autoClimbPosition: 'Center',
     bumpTrenchCount: '2',
     fuelDroppedOnBumpCount: '0',
@@ -597,8 +593,7 @@ function testMatchUpload() {
     majorPenalty: '0',
     teleClimbStatus: 'Level2',
     teleClimbTime: '8',
-    teleClimbSide: 'Right',
-    teleClimbPosition: 'Left',
+    teleClimbPosition: 'LeftSide',
     robotDied: '0',
     almostTipped: '0',
     ridingOnBall: '0',
