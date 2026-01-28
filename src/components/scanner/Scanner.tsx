@@ -93,12 +93,10 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
 
     // 避免重複初始化（處理 StrictMode 雙重掛載）
     if (isInitializingRef.current || scannerRef.current) {
-      console.log('[Scanner] Already initializing or initialized, skipping');
       return;
     }
 
     isInitializingRef.current = true;
-    console.log('[Scanner] Starting initialization...');
 
     // 延遲初始化，確保 DOM 已渲染且前一個實例已清理
     const initTimer = setTimeout(async () => {
@@ -153,7 +151,6 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
           setIsInitialized(true);
           setCameraError(null);
         }
-        console.log('[Scanner] Initialization complete');
       } catch (e) {
         console.error('[Scanner] Failed to initialize:', e);
         isInitializingRef.current = false;
@@ -165,7 +162,6 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
 
     // 清理函式
     return () => {
-      console.log('[Scanner] Cleanup triggered');
       isMountedRef.current = false;
       clearTimeout(initTimer);
 
@@ -174,9 +170,8 @@ export function Scanner({ onScan, onError, isActive = true }: ScannerProps) {
         if (scannerRef.current) {
           try {
             await scannerRef.current.clear();
-            console.log('[Scanner] Scanner cleared');
-          } catch (e) {
-            console.warn('[Scanner] Failed to clear scanner:', e);
+          } catch {
+            // 忽略清理錯誤
           }
           scannerRef.current = null;
         }

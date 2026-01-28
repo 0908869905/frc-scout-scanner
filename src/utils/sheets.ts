@@ -76,27 +76,19 @@ export async function uploadToSheets(
   };
 
   try {
-    console.log('[Upload] Sending to:', settings.sheetsApiUrl);
-    console.log('[Upload] Payload:', JSON.stringify(payload));
-
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
       redirect: 'follow',
       body: JSON.stringify(payload),
     });
 
-    console.log('[Upload] Response status:', response.status);
-    console.log('[Upload] Response ok:', response.ok);
-
     const text = await response.text();
-    console.log('[Upload] Response text:', text);
 
     let result: AppsScriptResponse;
 
     try {
       result = JSON.parse(text);
     } catch {
-      console.log('[Upload] Response is not JSON');
       return {
         success: false,
         message: '回應格式錯誤: ' + text.substring(0, 100),
@@ -144,13 +136,9 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   failed: number;
   results: UploadStatus[];
 }> {
-  console.log('[UploadBatch] Starting, items count:', items.length);
-
   const settings = loadSettings();
-  console.log('[UploadBatch] API URL:', settings.sheetsApiUrl || '(empty)');
 
   if (!settings.sheetsApiUrl) {
-    console.log('[UploadBatch] No API URL configured!');
     return {
       successful: 0,
       failed: items.length,
@@ -180,25 +168,19 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   };
 
   try {
-    console.log('[UploadBatch] Sending batch request...');
-    console.log('[UploadBatch] Payload:', JSON.stringify(payload));
-
     const response = await fetch(settings.sheetsApiUrl, {
       method: 'POST',
       redirect: 'follow',
       body: JSON.stringify(payload),
     });
 
-    console.log('[UploadBatch] Response status:', response.status);
     const text = await response.text();
-    console.log('[UploadBatch] Response:', text);
 
     let result: { success: boolean };
 
     try {
       result = JSON.parse(text);
     } catch {
-      console.log('[UploadBatch] Response is not JSON');
       result = { success: false };
     }
 
