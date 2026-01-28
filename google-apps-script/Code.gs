@@ -276,8 +276,8 @@ function handleMatchData(data) {
     };
   }
 
-  // 新增紀錄
-  const row = buildMatchRow(data, 'None', data.scanTime, uploadTime);
+  // 新增紀錄（使用 data.autoPath，如果前端已合併路徑）
+  const row = buildMatchRow(data, data.autoPath || 'None', data.scanTime, uploadTime);
   sheet.appendRow(row);
   const rowNumber = sheet.getLastRow();
 

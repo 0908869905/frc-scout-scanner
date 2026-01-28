@@ -42,19 +42,36 @@ export function ScanPage({
 
     // 檢查 Path 是否需要配對到現有 Match
     if (result.type === 'path') {
+      console.log('[Path Merge] Path matchKey:', matchKey);
+      console.log('[Path Merge] Path data:', result.data);
+      console.log('[Path Merge] History matches:', history.filter(h => h.qrType === 'match').map(h => ({ id: h.id, matchKey: h.matchKey, data: h.data })));
+
       const matchItem = history.find(
         (h) => h.qrType === 'match' && h.matchKey === matchKey
       );
+
       if (matchItem) {
+        console.log('[Path Merge] Found match:', matchItem.id);
+        console.log('[Path Merge] Original match data:', matchItem.data);
+        console.log('[Path Merge] Adding autoPath:', result.data.autoPath);
+
         // 將路徑數據合併到 Match
         const updatedHistory = history.map((h) =>
           h.id === matchItem.id
             ? { ...h, data: { ...h.data, autoPath: result.data.autoPath } }
             : h
         );
+
+        // 確認合併後的數據
+        const mergedItem = updatedHistory.find(h => h.id === matchItem.id);
+        console.log('[Path Merge] Merged match data:', mergedItem?.data);
+        console.log('[Path Merge] autoPath in merged:', mergedItem?.data?.autoPath);
+
         onUpdateHistory(updatedHistory);
         onShowToast('success', t.result.pathMerged);
         return;
+      } else {
+        console.log('[Path Merge] No matching Match found!');
       }
     }
 
