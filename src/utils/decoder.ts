@@ -13,10 +13,13 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 21 (v1.1.0)
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 22 (v1.2.0)
   if (length === TSV_SCHEMA_PATH.length) return 'path';             // 4
   if (length === TSV_SCHEMA_PIT.length) return 'pit';               // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external'; // 23
+
+  // 記錄未知欄位數量以便除錯
+  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}`);
 
   return 'unknown';
 }

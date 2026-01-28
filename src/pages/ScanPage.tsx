@@ -34,7 +34,9 @@ export function ScanPage({
 
     // 驗證基本資料
     if (!isValidDecodeResult(result)) {
-      onShowToast('warning', t.result.incomplete);
+      // 顯示更詳細的錯誤訊息
+      const fieldCount = result.raw?.length || 0;
+      onShowToast('warning', `${t.result.incomplete} (欄位數: ${fieldCount})`);
       return;
     }
 
