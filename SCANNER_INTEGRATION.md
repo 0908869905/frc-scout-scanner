@@ -40,7 +40,7 @@ Scouting PASS 在每場比賽結束後會產生 **兩個 QR Code**：
 
 **識別方式**：
 - 顏色：青色背景白色前景
-- 欄位數量：23 個欄位（Match 模式）
+- 欄位數量：21 個欄位（Match 模式）
 
 ### 2. Auto Path QR（路徑資料）
 
@@ -63,7 +63,7 @@ Scouting PASS 在每場比賽結束後會產生 **兩個 QR Code**：
 ```javascript
 import LZString from 'lz-string';
 
-const tsvData = "John\t2026MSLR\tQM\t15\tRed\t6998\t...";
+const tsvData = "John\t2026MSLR\tQM\t15\tR1\t6998\t...";
 const compressed = LZString.compressToBase64(tsvData);
 // compressed 就是 QR Code 的內容
 ```
@@ -76,7 +76,7 @@ import LZString from 'lz-string';
 
 const scannedQRContent = "N4IgJg..."; // 掃描得到的字串
 const tsvData = LZString.decompressFromBase64(scannedQRContent);
-// tsvData = "John\t2026MSLR\tQM\t15\tRed\t6998\t..."
+// tsvData = "John\t2026MSLR\tQM\t15\tR1\t6998\t..."
 ```
 
 ### LZ-String 函式庫
@@ -143,7 +143,7 @@ x1,y1|x2,y2|x3,y3|...
 
 ### Match Data QR（TSV_SCHEMA_MATCH）
 
-共 23 個欄位，按以下順序排列：
+共 21 個欄位，按以下順序排列：
 
 | 索引 | 欄位名稱 | 類型 | 說明 | 範例值 |
 |------|----------|------|------|--------|
@@ -151,19 +151,19 @@ x1,y1|x2,y2|x3,y3|...
 | 1 | `eventCode` | string | 賽事代碼 | `"2026MSLR"` |
 | 2 | `matchLevel` | string | 比賽等級（縮寫） | `"QM"` |
 | 3 | `matchNumber` | number | 場次編號 | `15` |
-| 4 | `alliance` | string | 聯盟 | `"Red"` 或 `"Blue"` |
+| 4 | `alliance` | string | 聯盟位置 | `"R1"`, `"R2"`, `"R3"`, `"B1"`, `"B2"`, `"B3"` |
 | 5 | `teamNumber` | string | 隊伍號碼 | `"6998"` |
-| 6 | `autoFuel` | number | 自動階段 Fuel 得分數 | `3` |
-| 7 | `autoClimbStatus` | string | 自動爬塔狀態 | `"None"`, `"Level1"`, `"Failed"` |
-| 8 | `autoClimbTime` | number | 自動爬塔時間（秒） | `5` |
-| 9 | `teleFuel` | number | 手動階段 Fuel 得分數 | `12` |
-| 10 | `teleClimbStatus` | string | 手動爬塔狀態 | `"None"`, `"Level1"`, `"Level2"`, `"Level3"`, `"Failed"` |
-| 11 | `teleClimbTime` | number | 手動爬塔時間（秒） | `8` |
+| 6 | `autoClimbStatus` | string | 自動爬塔狀態 | `"None"`, `"Level1"`, `"Failed"` |
+| 7 | `autoClimbTime` | number | 自動爬塔時間（秒） | `5.23` |
+| 8 | `autoClimbSide` | string | 自動爬塔側 | `"None"`, `"Left"`, `"Center"`, `"Right"` |
+| 9 | `teleClimbStatus` | string | 手動爬塔狀態 | `"None"`, `"Level1"`, `"Level2"`, `"Level3"`, `"Failed"` |
+| 10 | `teleClimbTime` | number | 手動爬塔時間（秒） | `8.45` |
+| 11 | `teleClimbSide` | string | 手動爬塔側 | `"None"`, `"Left"`, `"Center"`, `"Right"` |
 | 12 | `bumpTrenchCount` | number | 跨越 Bump & Trench 次數 | `2` |
-| 13 | `fuelDroppedOnBump` | boolean | 跨越時掉落 Fuel | `1` 或 `0` |
+| 13 | `fuelDroppedOnBumpCount` | number | 穿越 Bump 時掉落 Fuel 次數 | `1` |
 | 14 | `penaltyCount` | number | 犯規次數 | `1` |
-| 15 | `yellowCard` | boolean | 黃牌 | `1` 或 `0` |
-| 16 | `redCard` | boolean | 紅牌 | `1` 或 `0` |
+| 15 | `minorPenalty` | boolean | 輕微犯規 | `1` 或 `0` |
+| 16 | `majorPenalty` | boolean | 重大犯規 | `1` 或 `0` |
 | 17 | `robotDied` | boolean | 機器人故障/倒下 | `1` 或 `0` |
 | 18 | `almostTipped` | boolean | 差點傾倒 | `1` 或 `0` |
 | 19 | `ridingOnBall` | boolean | 騎在球上 | `1` 或 `0` |
@@ -171,7 +171,6 @@ x1,y1|x2,y2|x3,y3|...
 | 21 | `driverSkill` | number | 駕駛技術評分 (0-5) | `4` |
 | 22 | `speedRating` | number | 速度評分 (0-5) | `4` |
 | 23 | `comments` | string | 備註 | `"Very fast robot"` |
-| 24 | `subjectiveNotes` | string | 主觀筆記 | `"Good alliance partner"` |
 
 ### Auto Path QR（TSV_SCHEMA_PATH）
 
@@ -186,7 +185,7 @@ x1,y1|x2,y2|x3,y3|...
 
 ### Pit Scouting QR（TSV_SCHEMA_PIT）
 
-Pit 偵察使用不同的 schema，共 14 個欄位：
+Pit 偵察使用不同的 schema，共 13 個欄位：
 
 | 索引 | 欄位名稱 | 類型 | 說明 |
 |------|----------|------|------|
@@ -219,7 +218,17 @@ Pit 偵察使用不同的 schema，共 14 個欄位：
 
 ### alliance 值
 
-2026 賽季僅有 `Red` 和 `Blue` 兩種值（無位置編號）。
+2026 賽季使用位置編號：
+- 紅方：`R1`, `R2`, `R3`
+- 藍方：`B1`, `B2`, `B3`
+
+### climbSide 值
+
+攀爬側選項：
+- `None` - 未攀爬/無選擇
+- `Left` - 左側
+- `Center` - 中間
+- `Right` - 右側
 
 ---
 
@@ -233,12 +242,12 @@ import LZString from 'lz-string';
 // TSV Schema 定義（必須與 Scouting PASS 一致）
 const TSV_SCHEMA_MATCH = [
   'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
-  'autoFuel', 'autoClimbStatus', 'autoClimbTime',
-  'teleFuel', 'teleClimbStatus', 'teleClimbTime', 'bumpTrenchCount', 'fuelDroppedOnBump',
-  'penaltyCount', 'yellowCard', 'redCard',
+  'autoClimbStatus', 'autoClimbTime', 'autoClimbSide',
+  'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+  'penaltyCount', 'minorPenalty', 'majorPenalty',
   'robotDied', 'almostTipped', 'ridingOnBall',
   'defenseRating', 'driverSkill', 'speedRating',
-  'comments', 'subjectiveNotes'
+  'comments'
 ];
 
 const TSV_SCHEMA_PATH = ['eventCode', 'matchNumber', 'teamNumber', 'autoPath'];
@@ -291,8 +300,10 @@ function parsePath(pathString: string): Array<{x: number, y: number}> {
 
 // 使用範例
 const matchData = decodeMatchQR(scannedQRContent);
-console.log(matchData.teamNumber);  // "6998"
-console.log(matchData.autoFuel);    // "3"
+console.log(matchData.teamNumber);       // "6998"
+console.log(matchData.alliance);         // "R1"
+console.log(matchData.autoClimbSide);    // "Left"
+console.log(matchData.teleClimbSide);    // "Center"
 
 const pathData = decodePathQR(scannedPathQRContent);
 const pathPoints = parsePath(pathData.autoPath);
@@ -306,12 +317,12 @@ import lzstring
 
 TSV_SCHEMA_MATCH = [
     'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
-    'autoFuel', 'autoClimbStatus', 'autoClimbTime',
-    'teleFuel', 'teleClimbStatus', 'teleClimbTime', 'bumpTrenchCount', 'fuelDroppedOnBump',
-    'penaltyCount', 'yellowCard', 'redCard',
+    'autoClimbStatus', 'autoClimbTime', 'autoClimbSide',
+    'teleClimbStatus', 'teleClimbTime', 'teleClimbSide', 'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+    'penaltyCount', 'minorPenalty', 'majorPenalty',
     'robotDied', 'almostTipped', 'ridingOnBall',
     'defenseRating', 'driverSkill', 'speedRating',
-    'comments', 'subjectiveNotes'
+    'comments'
 ]
 
 TSV_SCHEMA_PATH = ['eventCode', 'matchNumber', 'teamNumber', 'autoPath']
@@ -353,8 +364,10 @@ def parse_path(path_string: str) -> list:
 
 # 使用範例
 match_data = decode_match_qr(scanned_qr_content)
-print(match_data['teamNumber'])  # "6998"
-print(match_data['autoFuel'])    # "3"
+print(match_data['teamNumber'])       # "6998"
+print(match_data['alliance'])         # "R1"
+print(match_data['autoClimbSide'])    # "Left"
+print(match_data['teleClimbSide'])    # "Center"
 
 path_data = decode_path_qr(scanned_path_qr_content)
 path_points = parse_path(path_data['autoPath'])
@@ -368,12 +381,12 @@ import LZString
 
 let TSV_SCHEMA_MATCH = [
     "scouterName", "eventCode", "matchLevel", "matchNumber", "alliance", "teamNumber",
-    "autoFuel", "autoClimbStatus", "autoClimbTime",
-    "teleFuel", "teleClimbStatus", "teleClimbTime", "bumpTrenchCount", "fuelDroppedOnBump",
-    "penaltyCount", "yellowCard", "redCard",
+    "autoClimbStatus", "autoClimbTime", "autoClimbSide",
+    "teleClimbStatus", "teleClimbTime", "teleClimbSide", "bumpTrenchCount", "fuelDroppedOnBumpCount",
+    "penaltyCount", "minorPenalty", "majorPenalty",
     "robotDied", "almostTipped", "ridingOnBall",
     "defenseRating", "driverSkill", "speedRating",
-    "comments", "subjectiveNotes"
+    "comments"
 ]
 
 let TSV_SCHEMA_PATH = ["eventCode", "matchNumber", "teamNumber", "autoPath"]
@@ -428,7 +441,7 @@ A: 因為 autoPath 資料可能很長（幾百個座標點），如果包含在�
 A: 解壓縮後計算欄位數量：
 - 4 個欄位 → Auto Path QR
 - 13 個欄位 → Pit Scouting QR
-- 23+ 個欄位 → Match Data QR
+- 21+ 個欄位 → Match Data QR
 
 或者檢查第一個欄位：
 - 如果第一個欄位是 `eventCode` 開頭的賽事代碼（如 `2026MSLR`）→ 可能是 Path QR
@@ -457,12 +470,27 @@ A: 路徑座標是**百分比座標**（0-100），相對於場地圖片的寬�
 
 這樣可以確保在不同解析度的螢幕上都能正確顯示。
 
+### Q7: alliance 欄位的格式是什麼？
+
+A: 2026 賽季使用位置編號格式：
+- 紅方位置：`R1`, `R2`, `R3`
+- 藍方位置：`B1`, `B2`, `B3`
+
+### Q8: climbSide 欄位是什麼意思？
+
+A: 攀爬側記錄機器人攀爬時的位置（左/中/右），用於分析攀爬策略：
+- `None` - 未攀爬或未記錄
+- `Left` - 左側攀爬
+- `Center` - 中間攀爬
+- `Right` - 右側攀爬
+
 ---
 
 ## 版本歷史
 
 | 版本 | 日期 | 變更內容 |
 |------|------|----------|
+| 1.1.0 | 2026-01-28 | **重大變更**：移除 autoFuel/teleFuel 欄位、alliance 改為 R1-R3/B1-B3 格式、新增 autoClimbSide/teleClimbSide 欄位、fuelDroppedOnBump 改為 fuelDroppedOnBumpCount (次數)、yellowCard/redCard 改為 minorPenalty/majorPenalty、移除 subjectiveNotes 欄位、Climb Time 改為持續計時 |
 | 1.0.0 | 2026-01-26 | 初始版本，支援 Match/Pit/Path 三種 QR Code |
 
 ---

@@ -36,35 +36,34 @@ const CONFIG = {
 // ============================================
 
 /**
- * Match Data QR - 25 個欄位（不含 autoPath）
- * 對應 SCANNER_INTEGRATION.md 的 TSV_SCHEMA_MATCH
+ * Match Data QR - 24 個欄位（不含 autoPath）
+ * 對應 SCANNER_INTEGRATION.md v1.1.0 的 TSV_SCHEMA_MATCH
  */
 const TSV_SCHEMA_MATCH = [
-  'scouterName',      // 0: 偵察員姓名
-  'eventCode',        // 1: 賽事代碼
-  'matchLevel',       // 2: 比賽等級 (P/QM/PO/X)
-  'matchNumber',      // 3: 場次編號
-  'alliance',         // 4: 聯盟 (Red/Blue)
-  'teamNumber',       // 5: 隊伍號碼
-  'autoFuel',         // 6: 自動階段 Fuel 得分數
-  'autoClimbStatus',  // 7: 自動爬塔狀態
-  'autoClimbTime',    // 8: 自動爬塔時間（秒）
-  'teleFuel',         // 9: 手動階段 Fuel 得分數
-  'teleClimbStatus',  // 10: 手動爬塔狀態
-  'teleClimbTime',    // 11: 手動爬塔時間（秒）
-  'bumpTrenchCount',  // 12: 跨越 Bump & Trench 次數
-  'fuelDroppedOnBump',// 13: 跨越時掉落 Fuel (0/1)
-  'penaltyCount',     // 14: 犯規次數
-  'yellowCard',       // 15: 黃牌 (0/1)
-  'redCard',          // 16: 紅牌 (0/1)
-  'robotDied',        // 17: 機器人故障 (0/1)
-  'almostTipped',     // 18: 差點傾倒 (0/1)
-  'ridingOnBall',     // 19: 騎在球上 (0/1)
-  'defenseRating',    // 20: 防守評分 (0-5)
-  'driverSkill',      // 21: 駕駛技術評分 (0-5)
-  'speedRating',      // 22: 速度評分 (0-5)
-  'comments',         // 23: 備註
-  'subjectiveNotes'   // 24: 主觀筆記
+  'scouterName',          // 0: 偵察員姓名
+  'eventCode',            // 1: 賽事代碼
+  'matchLevel',           // 2: 比賽等級 (P/QM/PO/X)
+  'matchNumber',          // 3: 場次編號
+  'alliance',             // 4: 聯盟位置 (R1/R2/R3/B1/B2/B3)
+  'teamNumber',           // 5: 隊伍號碼
+  'autoClimbStatus',      // 6: 自動爬塔狀態
+  'autoClimbTime',        // 7: 自動爬塔時間（秒）
+  'autoClimbSide',        // 8: 自動爬塔側 (None/Left/Center/Right)
+  'teleClimbStatus',      // 9: 手動爬塔狀態
+  'teleClimbTime',        // 10: 手動爬塔時間（秒）
+  'teleClimbSide',        // 11: 手動爬塔側 (None/Left/Center/Right)
+  'bumpTrenchCount',      // 12: 跨越 Bump & Trench 次數
+  'fuelDroppedOnBumpCount', // 13: 穿越 Bump 時掉落 Fuel 次數
+  'penaltyCount',         // 14: 犯規次數
+  'minorPenalty',         // 15: 輕微犯規 (0/1)
+  'majorPenalty',         // 16: 重大犯規 (0/1)
+  'robotDied',            // 17: 機器人故障 (0/1)
+  'almostTipped',         // 18: 差點傾倒 (0/1)
+  'ridingOnBall',         // 19: 騎在球上 (0/1)
+  'defenseRating',        // 20: 防守評分 (0-5)
+  'driverSkill',          // 21: 駕駛技術評分 (0-5)
+  'speedRating',          // 22: 速度評分 (0-5)
+  'comments'              // 23: 備註
 ];
 
 /**

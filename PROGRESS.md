@@ -6,9 +6,9 @@
 
 ## 目前狀態
 
-**階段**：整合測試與部署
+**階段**：Schema 更新 + Pit Collect 整合
 **完成度**：95%
-**最後更新**：2026-01-26 (晚間)
+**最後更新**：2026-01-28
 
 ---
 
@@ -69,6 +69,28 @@
 ---
 
 ## 工作日誌
+
+### 2026-01-28
+
+**完成項目**：
+
+1. **Schema v1.1.0 更新**（配合 SCANNER_INTEGRATION.md）
+   - Match Data: 25 欄位 → 24 欄位
+   - 移除：`autoFuel`, `teleFuel`, `subjectiveNotes`
+   - 新增：`autoClimbSide`, `teleClimbSide`
+   - 改名：`fuelDroppedOnBump` → `fuelDroppedOnBumpCount`
+   - 改名：`yellowCard` → `minorPenalty`, `redCard` → `majorPenalty`
+   - alliance 格式：`Red/Blue` → `R1/R2/R3/B1/B2/B3`
+
+2. **Pit Collect 整合修復**
+   - `pit-external` 類型轉換為 `pit` 上傳（避免 Apps Script 版本問題）
+   - 修正 `timestamp` → `scanTime`（Apps Script 期望的欄位名）
+
+**待確認**：
+- Pit Scouting 工作表是否有接收到資料
+- Path QR 掃描後是否成功合併到 Match
+
+---
 
 ### 2026-01-26 (晚間場)
 

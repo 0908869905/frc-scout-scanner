@@ -13,7 +13,7 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 25
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 24 (v1.1.0)
   if (length === TSV_SCHEMA_PATH.length) return 'path';             // 4
   if (length === TSV_SCHEMA_PIT.length) return 'pit';               // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external'; // 23

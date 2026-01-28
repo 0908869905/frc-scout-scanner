@@ -2,25 +2,25 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (25 栏位)
+// Match Data TSV Schema (24 栏位) - v1.1.0
 export const TSV_SCHEMA_MATCH = [
   'scouterName',
   'eventCode',
   'matchLevel',
   'matchNumber',
-  'alliance',
+  'alliance',           // R1/R2/R3/B1/B2/B3
   'teamNumber',
-  'autoFuel',
   'autoClimbStatus',
   'autoClimbTime',
-  'teleFuel',
+  'autoClimbSide',      // None/Left/Center/Right
   'teleClimbStatus',
   'teleClimbTime',
+  'teleClimbSide',      // None/Left/Center/Right
   'bumpTrenchCount',
-  'fuelDroppedOnBump',
+  'fuelDroppedOnBumpCount',
   'penaltyCount',
-  'yellowCard',
-  'redCard',
+  'minorPenalty',       // 原 yellowCard
+  'majorPenalty',       // 原 redCard
   'robotDied',
   'almostTipped',
   'ridingOnBall',
@@ -28,7 +28,6 @@ export const TSV_SCHEMA_MATCH = [
   'driverSkill',
   'speedRating',
   'comments',
-  'subjectiveNotes',
 ] as const;
 
 // Path Data TSV Schema (4 栏位)
@@ -85,32 +84,32 @@ export const TSV_SCHEMA_PIT_EXTERNAL = [
 
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
-  match: TSV_SCHEMA_MATCH.length,      // 25
+  match: TSV_SCHEMA_MATCH.length,      // 24
   path: TSV_SCHEMA_PATH.length,        // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 23
 } as const;
 
-// 栏位显示名称（中文）
+// 栏位显示名称（中文）- v1.1.0 更新
 export const FIELD_LABELS: Record<string, string> = {
-  // Match Data
+  // Match Data (v1.1.0)
   scouterName: '记录员',
   eventCode: '赛事代码',
   matchLevel: '比赛等级',
   matchNumber: '比赛编号',
-  alliance: '联盟',
+  alliance: '联盟位置',        // R1/R2/R3/B1/B2/B3
   teamNumber: '队伍编号',
-  autoFuel: '自动燃料',
-  autoClimbStatus: '自动爬升',
+  autoClimbStatus: '自动爬升状态',
   autoClimbTime: '自动爬升时间',
-  teleFuel: '遥控燃料',
-  teleClimbStatus: '遥控爬升',
-  teleClimbTime: '遥控爬升时间',
-  bumpTrenchCount: '撞沟次数',
-  fuelDroppedOnBump: '撞击掉落',
-  penaltyCount: '罚球次数',
-  yellowCard: '黄牌',
-  redCard: '红牌',
+  autoClimbSide: '自动爬升侧',  // 新增
+  teleClimbStatus: '手动爬升状态',
+  teleClimbTime: '手动爬升时间',
+  teleClimbSide: '手动爬升侧',  // 新增
+  bumpTrenchCount: '跨越次数',
+  fuelDroppedOnBumpCount: '掉落次数',  // 改名
+  penaltyCount: '犯规次数',
+  minorPenalty: '轻微犯规',    // 原 yellowCard
+  majorPenalty: '重大犯规',    // 原 redCard
   robotDied: '机器人故障',
   almostTipped: '差点翻倒',
   ridingOnBall: '骑球',
@@ -118,7 +117,6 @@ export const FIELD_LABELS: Record<string, string> = {
   driverSkill: '驾驶技术',
   speedRating: '速度评分',
   comments: '评论',
-  subjectiveNotes: '备注',
 
   // Path Data
   autoPath: '自动路径',
