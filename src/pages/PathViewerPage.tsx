@@ -14,6 +14,7 @@ interface PathData {
   coords: string;
   color: string;
   visible: boolean;
+  flipped: boolean;
 }
 
 // 預設路徑顏色
@@ -54,6 +55,7 @@ export function PathViewerPage() {
       coords: inputValue.trim(),
       color: PATH_COLORS[paths.length % PATH_COLORS.length],
       visible: true,
+      flipped: false,
     };
 
     setPaths(prev => [...prev, newPath]);
@@ -65,6 +67,13 @@ export function PathViewerPage() {
   const togglePathVisibility = useCallback((id: string) => {
     setPaths(prev => prev.map(p =>
       p.id === id ? { ...p, visible: !p.visible } : p
+    ));
+  }, []);
+
+  // 翻轉路徑 180°
+  const togglePathFlip = useCallback((id: string) => {
+    setPaths(prev => prev.map(p =>
+      p.id === id ? { ...p, flipped: !p.flipped } : p
     ));
   }, []);
 
@@ -126,26 +135,30 @@ export function PathViewerPage() {
 
       {/* 場地圖 + 路徑疊圖 */}
       <Card className="p-0 overflow-hidden">
-        <div className="relative w-full" style={{ aspectRatio: '3902/1584' }}>
-          {/* 場地底圖 */}
+        <div className="relative w-full" style={{ aspectRatio: '2/1' }}>
+          {/* 場地底圖 - object-fill 拉伸填滿，與 Scouting App 一致 */}
           <img
             src="/field-2026.png"
             alt="FRC 2026 Field"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-fill"
           />
 
-          {/* SVG 路徑疊圖 */}
+          {/* SVG 路徑疊圖 - viewBox 2:1 匹配容器比例，避免圓點變形 */}
           <svg
             className="absolute inset-0 w-full h-full"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
+            viewBox="0 0 200 100"
           >
             {paths.filter(p => p.visible).map(path => {
-              const points = parsePathString(path.coords);
-              if (points.length < 2) return null;
+              const rawPoints = parsePathString(path.coords);
+              if (rawPoints.length < 2) return null;
 
+              const points = path.flipped
+                ? rawPoints.map(p => ({ x: 100 - p.x, y: 100 - p.y }))
+                : rawPoints;
+
+              // x 座標 * 2 映射到 0-200 viewBox，y 保持 0-100
               const pathD = points
-                .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+                .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 2} ${p.y}`)
                 .join(' ');
 
               return (
@@ -162,7 +175,7 @@ export function PathViewerPage() {
                   />
                   {/* 起點 */}
                   <circle
-                    cx={points[0].x}
+                    cx={points[0].x * 2}
                     cy={points[0].y}
                     r="2"
                     fill={path.color}
@@ -171,18 +184,18 @@ export function PathViewerPage() {
                   />
                   {/* 終點 */}
                   <circle
-                    cx={points[points.length - 1].x}
+                    cx={points[points.length - 1].x * 2}
                     cy={points[points.length - 1].y}
                     r="2"
                     fill="white"
                     stroke={path.color}
                     strokeWidth="0.5"
                   />
-                  {/* 方向箭頭（中間點） */}
+                  {/* 中間點 */}
                   {points.length > 2 && points.slice(1, -1).map((p, i) => (
                     <circle
                       key={i}
-                      cx={p.x}
+                      cx={p.x * 2}
                       cy={p.y}
                       r="1"
                       fill={path.color}
@@ -222,11 +235,25 @@ export function PathViewerPage() {
                       {path.name}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {points.length} 個點
+                      {points.length} 個點{path.flipped ? ' · 已翻轉' : ''}
                     </div>
                   </div>
 
                   {/* 操作按鈕 */}
+                  <button
+                    onClick={() => togglePathFlip(path.id)}
+                    className={`p-1.5 rounded ${
+                      path.flipped
+                        ? 'text-amber-400 hover:bg-amber-500/20'
+                        : 'text-slate-500 hover:bg-slate-700'
+                    }`}
+                    title={path.flipped ? '還原方向' : '翻轉 180°'}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                    </svg>
+                  </button>
+
                   <button
                     onClick={() => togglePathVisibility(path.id)}
                     className={`p-1.5 rounded ${
