@@ -51,13 +51,32 @@ function detectQRType(values: string[]): 'match' | 'path' | 'pit' | 'unknown' {
 }
 ```
 
-### Schema 定義 (v1.0.0)
+### Schema 定義演進
 
+#### v1.0.0 (初始版本)
 | 類型 | 欄位數 | 說明 |
 |------|--------|------|
 | Match Data | 25 | scouterName → subjectiveNotes（不含 autoPath） |
 | Path Data | 4 | eventCode, matchNumber, teamNumber, autoPath |
 | Pit Scouting | 13 | scouterName → pitAutoNotes |
+
+#### v1.1.0
+| 類型 | 欄位數 | 變更 |
+|------|--------|------|
+| Match Data | 24 | 移除 autoFuel/teleFuel/subjectiveNotes，新增 autoClimbSide/teleClimbSide |
+
+#### v1.2.0
+| 類型 | 欄位數 | 變更 |
+|------|--------|------|
+| Match Data | 22 | 新增 autoClimbPosition/teleClimbPosition，移除 defenseRating/driverSkill/speedRating |
+
+#### v1.3.0 (目前版本)
+| 類型 | 欄位數 | 變更 |
+|------|--------|------|
+| Match Data | 20 | 移除 autoClimbSide/teleClimbSide，climbPosition 合併為 5 選項 |
+| Path Data | 4 | 無變更 |
+| Pit Scouting | 13 | 無變更 |
+| Pit External | 23 | 新增 FRC6998 Pit Collect 格式 |
 
 ---
 
@@ -328,6 +347,46 @@ const matchKey = `${data.eventCode}_${data.matchNumber}_${data.teamNumber}`;
 
 ---
 
+---
+
+## Path Viewer 可視化
+
+### 發現日期：2026-01-28
+
+**用途**：將座標字串可視化顯示在場地圖上
+
+### 座標格式
+
+```
+x1,y1|x2,y2|x3,y3|...
+```
+
+- 座標範圍：0-100（百分比）
+- x: 0 = 左邊, 100 = 右邊
+- y: 0 = 上方, 100 = 下方
+
+### SVG 路徑繪製
+
+```typescript
+// 將座標轉換為 SVG path
+const pathD = points
+  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+  .join(' ');
+
+// SVG 使用 viewBox="0 0 100 100" 配合百分比座標
+<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+  <path d={pathD} stroke={color} />
+</svg>
+```
+
+### 實作重點
+
+1. **場地圖疊圖**：使用 `position: relative` + `absolute` 讓 SVG 疊在圖片上
+2. **多路徑比較**：使用陣列存儲多條路徑，分配不同顏色
+3. **視覺標記**：起點（實心圓）、終點（空心圓）、中間點（小圓點）
+
+---
+
 ## 參考資源
 
 - [SCANNER_INTEGRATION.md](./SCANNER_INTEGRATION.md) - 整合文件
@@ -338,4 +397,4 @@ const matchKey = `${data.eventCode}_${data.matchNumber}_${data.teamNumber}`;
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-01-26*
+*最後更新：2026-01-28*

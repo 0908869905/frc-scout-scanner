@@ -45,6 +45,7 @@
 | E004 | React | useEffect dependency 導致相機重啟 | 2026-01-26 | 已解決 |
 | E005 | TypeScript | ScanHistoryItem.qrType vs type 混淆 | 2026-01-26 | 已解決 |
 | E006 | Camera | OverconstrainedError 相機參數不支援 | 2026-01-26 | 已解決 |
+| E007 | Schema | Schema 欄位數不匹配導致「資料不完整」 | 2026-01-28 | 已解決 |
 
 ---
 
@@ -220,6 +221,44 @@ data: validItems.map(item => ({
 
 ---
 
+### [E007] Schema 欄位數不匹配導致「資料不完整」
+
+**日期**：2026-01-28
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+資料不完整
+```
+
+**根本原因**：
+- `constants/schema.ts` 更新了 Match Data 欄位數量（從 24 改為 20）
+- `utils/decoder.ts` 中的欄位數驗證邏輯沒有同步更新
+- 導致解碼後的資料被判定為「不完整」
+
+**解決方案**：
+```typescript
+// decoder.ts 中的欄位數判斷要與 schema.ts 同步
+// 錯誤：硬編碼舊的欄位數
+if (values.length === 24) return 'match';
+
+// 正確：使用 SCHEMA_LENGTHS 常數
+import { SCHEMA_LENGTHS } from '../constants/schema';
+if (values.length === SCHEMA_LENGTHS.match) return 'match';
+```
+
+**預防措施**：
+- Schema 更新時，務必同時更新所有相關的驗證邏輯
+- 使用 `SCHEMA_LENGTHS` 常數而非硬編碼數字
+- 更新後執行 `npm run build` 確認無錯誤
+
+**相關檔案**：
+- src/constants/schema.ts
+- src/utils/decoder.ts
+
+---
+
 ### [E006] OverconstrainedError 相機參數不支援
 
 **日期**：2026-01-26
@@ -377,10 +416,10 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 6 |
-| 已解決 | 6 |
+| 總錯誤數 | 7 |
+| 已解決 | 7 |
 | 進行中 | 0 |
-| 高嚴重度 | 3 |
+| 高嚴重度 | 4 |
 | 中嚴重度 | 3 |
 | 低嚴重度 | 0 |
 
@@ -395,4 +434,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-01-26 (晚間)*
+*最後更新：2026-01-28*

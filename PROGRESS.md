@@ -6,9 +6,32 @@
 
 ## 目前狀態
 
-**階段**：Schema 更新 + Pit Collect 整合
+**階段**：Schema v1.3.0 + Path Viewer 功能
 **完成度**：95%
 **最後更新**：2026-01-28
+
+---
+
+## Session: 2026-01-28
+
+### 完成項目
+- [x] 新增 Path Viewer 頁面 - 路徑可視化工具
+- [x] Schema v1.2.0 更新（22 欄位）
+- [x] Schema v1.3.0 更新（20 欄位）
+- [x] 修復「資料不完整」驗證錯誤
+
+### 修改檔案
+- `src/pages/PathViewerPage.tsx` - 新建：路徑可視化頁面
+- `src/constants/schema.ts` - 更新：Match Data 從 24 欄位 → 20 欄位
+- `src/utils/decoder.ts` - 更新：支援新 schema 欄位數驗證
+- `src/App.tsx` - 更新：新增 /path-viewer 路由
+
+### 5-Question Reboot Check
+1. **做什麼？** Schema 多次更新 + 新增 Path Viewer 功能
+2. **進度？** Schema v1.3.0 完成，Path Viewer 基本功能完成
+3. **下一步？** 部署到 Vercel，移除 debug log
+4. **阻礙？** 無
+5. **檔案？** `src/constants/schema.ts`, `src/pages/PathViewerPage.tsx`
 
 ---
 
@@ -70,7 +93,35 @@
 
 ## 工作日誌
 
-### 2026-01-28
+### 2026-01-28 (晚間場)
+
+**完成項目**：
+
+1. **Path Viewer 頁面**
+   - 新增 `/path-viewer` 路由
+   - 輸入座標字串（`x1,y1|x2,y2|...`）可視化
+   - 疊加在 2026 場地圖上顯示
+   - 支援多條路徑同時比較
+   - 可切換顯示/隱藏個別路徑
+
+2. **Schema v1.2.0 更新**
+   - Match Data: 24 欄位 → 22 欄位
+   - 新增：`autoClimbPosition`, `teleClimbPosition`（LeftSide/Left/Center/Right/RightSide）
+   - 移除：`penaltyCount`（原本 v1.1.0 就沒有這個）
+   - 移除：`defenseRating`, `driverSkill`, `speedRating`
+
+3. **Schema v1.3.0 更新**
+   - Match Data: 22 欄位 → 20 欄位
+   - 移除：`autoClimbSide`, `teleClimbSide`（合併到 climbPosition）
+   - climbPosition 選項：LeftSide / Left / Center / Right / RightSide
+
+4. **修復「資料不完整」錯誤**
+   - 原因：decoder.ts 驗證欄位數量與 schema.ts 不一致
+   - 解決：更新 decoder.ts 的欄位數判斷邏輯
+
+---
+
+### 2026-01-28 (早上場)
 
 **完成項目**：
 
@@ -268,11 +319,13 @@ frc-scout-scanner/
 
 ## 筆記
 
-- SCANNER_INTEGRATION.md v1.0.0 已更新，Schema 確認正確
-- Match Data: 25 欄位（不含 autoPath）
+- Schema v1.3.0 為最新版本
+- Match Data: 20 欄位（不含 autoPath）
 - Path Data: 4 欄位
 - Pit Scouting: 13 欄位
+- Pit External (Pit Collect): 23 欄位
 - Apps Script 會自動將 Path 合併到對應的 Match
+- Path Viewer 可輸入座標字串可視化路徑
 
 ---
 

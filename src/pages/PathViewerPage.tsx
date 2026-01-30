@@ -126,7 +126,7 @@ export function PathViewerPage() {
 
       {/* 場地圖 + 路徑疊圖 */}
       <Card className="p-0 overflow-hidden">
-        <div className="relative w-full" style={{ aspectRatio: '697/361' }}>
+        <div className="relative w-full" style={{ aspectRatio: '3902/1584' }}>
           {/* 場地底圖 */}
           <img
             src="/field-2026.png"

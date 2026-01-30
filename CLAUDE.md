@@ -22,9 +22,10 @@ Scouting App → QR Code (LZ-String Base64 壓縮) → Scanner App → 解碼 �
 
 ### 資料格式
 
-- **Match Data QR**：25 個欄位，包含比賽數據
+- **Match Data QR**：20 個欄位，包含比賽數據 (v1.3.0)
 - **Auto Path QR**：4 個欄位，包含自動路徑
 - **Pit Scouting QR**：13 個欄位，包含隊伍資訊
+- **Pit External QR**：23 個欄位，FRC6998 Pit Collect 格式
 
 ### 關鍵依賴
 
@@ -86,7 +87,8 @@ frc-scout-scanner/
 │       ├── index.ts
 │       ├── ScanPage.tsx
 │       ├── HistoryPage.tsx
-│       └── SettingsPage.tsx
+│       ├── SettingsPage.tsx
+│       └── PathViewerPage.tsx  # 路徑可視化工具
 ├── google-apps-script/
 │   ├── Code.gs            # Google Apps Script 完整程式碼
 │   └── README.md          # 部署指南
@@ -153,16 +155,22 @@ try {
 
 ## TSV Schema 定義
 
-### Match Data (25 欄位)
+### Match Data (20 欄位) - v1.3.0
 
 ```typescript
 const TSV_SCHEMA_MATCH = [
-  'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance',
-  'teamNumber', 'autoFuel', 'autoClimbStatus', 'autoClimbTime',
-  'teleFuel', 'teleClimbStatus', 'teleClimbTime', 'bumpTrenchCount',
-  'fuelDroppedOnBump', 'penaltyCount', 'yellowCard', 'redCard',
-  'robotDied', 'almostTipped', 'ridingOnBall', 'defenseRating',
-  'driverSkill', 'speedRating', 'comments', 'subjectiveNotes'
+  // PreMatch (6)
+  'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
+  // Auto (3)
+  'autoClimbStatus', 'autoClimbTime', 'autoClimbPosition',
+  // Teleop - Bump & Fuel (2)
+  'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+  // Teleop - Penalty (2)
+  'minorPenalty', 'majorPenalty',
+  // Teleop - Climb (3)
+  'teleClimbStatus', 'teleClimbTime', 'teleClimbPosition',
+  // PostMatch (4)
+  'robotDied', 'almostTipped', 'ridingOnBall', 'comments',
 ];
 ```
 
@@ -182,6 +190,18 @@ const TSV_SCHEMA_PIT = [
   'pitMotorType', 'pitLength', 'pitWidth', 'pitWeight',
   'pitCanFuel', 'pitCanTowerL1', 'pitCanTowerL2', 'pitCanTowerL3',
   'pitAutoNotes'
+];
+```
+
+### Pit External (23 欄位) - FRC6998 Pit Collect
+
+```typescript
+const TSV_SCHEMA_PIT_EXTERNAL = [
+  'teamNumber', 'scouterName', 'chassisType', 'weight', 'maxCapacity',
+  'intake', 'visionHardware', 'visionSoftware', 'shooting', 'turret',
+  'startLocation', 'preload', 'autoIntake', 'autoHang', 'autoTotal',
+  'crossMidfield', 'terrain', 'stability', 'climbLevel', 'climbPosition',
+  'climbTime', 'photosTaken', 'notes'
 ];
 ```
 
@@ -263,4 +283,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-01-26*
+*最後更新：2026-01-28*
