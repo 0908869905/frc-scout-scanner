@@ -8,14 +8,22 @@ import { useI18n } from '../i18n';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
+type PathAlliance = 'red' | 'blue' | 'unknown';
+
 interface PathData {
   id: string;
   name: string;
   coords: string;
   color: string;
+  alliance: PathAlliance;
   visible: boolean;
   flipped: boolean;
 }
+
+// Starting zone configuration (must match scouting app constants.ts)
+const STARTING_ZONE_WIDTH = 3.5;
+const RED_STARTING_ZONE_OFFSET = 25;
+const BLUE_STARTING_ZONE_OFFSET = 68;
 
 // 預設路徑顏色
 const PATH_COLORS = [
@@ -44,6 +52,7 @@ export function PathViewerPage() {
   const [paths, setPaths] = useState<PathData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [pathName, setPathName] = useState('');
+  const [pathAlliance, setPathAlliance] = useState<PathAlliance>('unknown');
 
   // 新增路徑
   const handleAddPath = useCallback(() => {
@@ -54,6 +63,7 @@ export function PathViewerPage() {
       name: pathName.trim() || `Path ${paths.length + 1}`,
       coords: inputValue.trim(),
       color: PATH_COLORS[paths.length % PATH_COLORS.length],
+      alliance: pathAlliance,
       visible: true,
       flipped: false,
     };
@@ -61,7 +71,7 @@ export function PathViewerPage() {
     setPaths(prev => [...prev, newPath]);
     setInputValue('');
     setPathName('');
-  }, [inputValue, pathName, paths.length]);
+  }, [inputValue, pathName, paths.length, pathAlliance]);
 
   // 切換路徑顯示
   const togglePathVisibility = useCallback((id: string) => {
@@ -77,15 +87,44 @@ export function PathViewerPage() {
     ));
   }, []);
 
+  // 更新路徑顏色
+  const updatePathColor = useCallback((id: string, color: string) => {
+    setPaths(prev => prev.map(p =>
+      p.id === id ? { ...p, color } : p
+    ));
+  }, []);
+
   // 刪除路徑
   const removePath = useCallback((id: string) => {
     setPaths(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  // 清除所有路徑
-  const clearAllPaths = useCallback(() => {
-    setPaths([]);
+  // 路徑上移（在陣列中往後 = SVG 上層）
+  const movePathUp = useCallback((id: string) => {
+    setPaths(prev => {
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx < prev.length - 1) {
+        const next = [...prev];
+        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+        return next;
+      }
+      return prev;
+    });
   }, []);
+
+  // 路徑下移（在陣列中往前 = SVG 下層）
+  const movePathDown = useCallback((id: string) => {
+    setPaths(prev => {
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx > 0) {
+        const next = [...prev];
+        [next[idx], next[idx - 1]] = [next[idx - 1], next[idx]];
+        return next;
+      }
+      return prev;
+    });
+  }, []);
+
 
   return (
     <div className="space-y-4">
@@ -120,16 +159,31 @@ export function PathViewerPage() {
             />
           </div>
 
-          <div className="flex gap-2">
-            <Button onClick={handleAddPath} disabled={!inputValue.trim()} fullWidth>
-              新增路徑
-            </Button>
-            {paths.length > 0 && (
-              <Button onClick={clearAllPaths} variant="danger">
-                清除全部
-              </Button>
-            )}
+          {/* 聯盟選擇 */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">聯盟</label>
+            <div className="flex gap-2">
+              {(['red', 'blue', 'unknown'] as const).map(a => (
+                <button
+                  key={a}
+                  onClick={() => setPathAlliance(a)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold border-2 transition-all ${
+                    pathAlliance === a
+                      ? a === 'red' ? 'bg-red-500/20 border-red-500 text-red-400'
+                        : a === 'blue' ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                        : 'bg-slate-700/50 border-slate-500 text-slate-300'
+                      : 'bg-slate-900 border-slate-700 text-slate-500'
+                  }`}
+                >
+                  {a === 'red' ? 'Red' : a === 'blue' ? 'Blue' : '—'}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <Button onClick={handleAddPath} disabled={!inputValue.trim()} fullWidth>
+            新增路徑
+          </Button>
         </div>
       </Card>
 
@@ -148,6 +202,27 @@ export function PathViewerPage() {
             className="absolute inset-0 w-full h-full"
             viewBox="0 0 200 100"
           >
+            {/* Starting zones */}
+            <rect
+              x={RED_STARTING_ZONE_OFFSET * 2}
+              y={0}
+              width={STARTING_ZONE_WIDTH * 2}
+              height={100}
+              fill="rgba(239, 68, 68, 0.15)"
+              stroke="rgba(239, 68, 68, 0.4)"
+              strokeWidth="0.5"
+              strokeDasharray="3 2"
+            />
+            <rect
+              x={BLUE_STARTING_ZONE_OFFSET * 2}
+              y={0}
+              width={STARTING_ZONE_WIDTH * 2}
+              height={100}
+              fill="rgba(59, 130, 246, 0.15)"
+              stroke="rgba(59, 130, 246, 0.4)"
+              strokeWidth="0.5"
+              strokeDasharray="3 2"
+            />
             {paths.filter(p => p.visible).map(path => {
               const rawPoints = parsePathString(path.coords);
               if (rawPoints.length < 2) return null;
@@ -214,20 +289,32 @@ export function PathViewerPage() {
         <Card>
           <h3 className="text-sm font-semibold text-slate-400 mb-2">路徑列表</h3>
           <div className="space-y-2">
-            {paths.map(path => {
+            {paths.map((path, idx) => {
               const points = parsePathString(path.coords);
               return (
                 <div
                   key={path.id}
-                  className={`flex items-center gap-3 p-2 rounded-lg ${
+                  className={`flex items-center gap-2 p-2 rounded-lg ${
                     path.visible ? 'bg-slate-800' : 'bg-slate-900 opacity-50'
                   }`}
                 >
-                  {/* 顏色指示 */}
-                  <div
-                    className="w-4 h-4 rounded-full shrink-0"
-                    style={{ backgroundColor: path.color }}
+                  {/* 顏色選擇器 */}
+                  <input
+                    type="color"
+                    value={path.color}
+                    onChange={(e) => updatePathColor(path.id, e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent shrink-0"
+                    title="自訂顏色"
                   />
+
+                  {/* 聯盟標籤 */}
+                  {path.alliance !== 'unknown' && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                      path.alliance === 'red' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {path.alliance === 'red' ? 'R' : 'B'}
+                    </span>
+                  )}
 
                   {/* 路徑資訊 */}
                   <div className="flex-1 min-w-0">
@@ -237,6 +324,30 @@ export function PathViewerPage() {
                     <div className="text-xs text-slate-500">
                       {points.length} 個點{path.flipped ? ' · 已翻轉' : ''}
                     </div>
+                  </div>
+
+                  {/* 圖層排序 */}
+                  <div className="flex flex-col shrink-0">
+                    <button
+                      onClick={() => movePathUp(path.id)}
+                      disabled={idx === paths.length - 1}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20"
+                      title="上移（前景）"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => movePathDown(path.id)}
+                      disabled={idx === 0}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20"
+                      title="下移（背景）"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* 操作按鈕 */}

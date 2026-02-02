@@ -13,8 +13,8 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';                    // 20 (v1.3.0)
-  if (length === TSV_SCHEMA_PATH.length) return 'path';                      // 4
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';                    // 21 (v1.4.0)
+  if (length === TSV_SCHEMA_PATH.length) return 'path';                      // 5
   if (length === TSV_SCHEMA_PIT.length) return 'pit';                        // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';      // 22 (v2, 無 stability)
   if (length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length) return 'pit-external'; // 23 (v1, 含 stability)

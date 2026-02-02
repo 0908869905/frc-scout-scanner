@@ -2,7 +2,7 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (20 栏位) - v1.3.0
+// Match Data TSV Schema (21 栏位) - v1.4.0
 // 必须与 Scouting PASS 的 constants.ts 保持一致
 export const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -16,8 +16,9 @@ export const TSV_SCHEMA_MATCH = [
   'autoClimbStatus',
   'autoClimbTime',
   'autoClimbPosition',  // LeftSide/Left/Center/Right/RightSide
-  // Teleop - Bump & Fuel (2)
-  'bumpTrenchCount',
+  // Teleop - Bump & Fuel (3)
+  'bumpCount',
+  'trenchCount',
   'fuelDroppedOnBumpCount',
   // Teleop - Penalty (2) - 計數器
   'minorPenalty',       // number (計數器)
@@ -33,11 +34,12 @@ export const TSV_SCHEMA_MATCH = [
   'comments',
 ] as const;
 
-// Path Data TSV Schema (4 栏位)
+// Path Data TSV Schema (5 栏位)
 export const TSV_SCHEMA_PATH = [
   'eventCode',
   'matchNumber',
   'teamNumber',
+  'alliance',
   'autoPath',
 ] as const;
 
@@ -113,8 +115,8 @@ export const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
 
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
-  match: TSV_SCHEMA_MATCH.length,      // 20
-  path: TSV_SCHEMA_PATH.length,        // 4
+  match: TSV_SCHEMA_MATCH.length,      // 21
+  path: TSV_SCHEMA_PATH.length,        // 5
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 22
   pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23
@@ -132,7 +134,8 @@ export const FIELD_LABELS: Record<string, string> = {
   autoClimbStatus: '自动爬升状态',
   autoClimbTime: '自动爬升时间',
   autoClimbPosition: '自动爬升位置',  // LeftSide/Left/Center/Right/RightSide
-  bumpTrenchCount: '跨越次数',
+  bumpCount: 'Bump 跨越次数',
+  trenchCount: 'Trench 跨越次数',
   fuelDroppedOnBumpCount: '掉落次数',
   minorPenalty: '轻微犯规',    // 计数器
   majorPenalty: '重大犯规',    // 计数器
@@ -141,7 +144,7 @@ export const FIELD_LABELS: Record<string, string> = {
   teleClimbPosition: '手动爬升位置',  // LeftSide/Left/Center/Right/RightSide
   robotDied: '机器人故障',
   almostTipped: '差点翻倒',
-  ridingOnBall: '骑球',
+  ridingOnBall: '骑 Fuel',
   comments: '评论',
 
   // Path Data
