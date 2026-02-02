@@ -36,11 +36,10 @@ const CONFIG = {
 // ============================================
 
 /**
- * Match Data QR - 20 個欄位（不含 autoPath）
+ * Match Data QR - 21 個欄位（不含 autoPath）
  * 必須與 Scouting PASS 的 constants.ts 保持一致
- * v1.3.0 變更：
- * - 移除 autoClimbSide, teleClimbSide
- * - climbPosition 改為 5 選項 (LeftSide/Left/Center/Right/RightSide)
+ * v1.4.0 變更：
+ * - bumpTrenchCount 拆分為 bumpCount + trenchCount
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -54,32 +53,34 @@ const TSV_SCHEMA_MATCH = [
   'autoClimbStatus',      // 6: 自動爬塔狀態
   'autoClimbTime',        // 7: 自動爬塔時間（秒）
   'autoClimbPosition',    // 8: 自動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
-  // Teleop - Bump & Fuel (2)
-  'bumpTrenchCount',      // 9: 跨越 Bump & Trench 次數
-  'fuelDroppedOnBumpCount', // 10: 穿越 Bump 時掉落 Fuel 次數
+  // Teleop - Bump & Fuel (3)
+  'bumpCount',            // 9: 跨越 Bump 次數
+  'trenchCount',          // 10: 跨越 Trench 次數
+  'fuelDroppedOnBumpCount', // 11: 穿越 Bump 時掉落 Fuel 次數
   // Teleop - Penalty (2) - 計數器
-  'minorPenalty',         // 11: 輕微犯規次數 (number)
-  'majorPenalty',         // 12: 重大犯規次數 (number)
+  'minorPenalty',         // 12: 輕微犯規次數 (number)
+  'majorPenalty',         // 13: 重大犯規次數 (number)
   // Teleop - Climb (3)
-  'teleClimbStatus',      // 13: 手動爬塔狀態
-  'teleClimbTime',        // 14: 手動爬塔時間（秒）
-  'teleClimbPosition',    // 15: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
+  'teleClimbStatus',      // 14: 手動爬塔狀態
+  'teleClimbTime',        // 15: 手動爬塔時間（秒）
+  'teleClimbPosition',    // 16: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
   // PostMatch (4)
-  'robotDied',            // 16: 機器人故障 (0/1)
-  'almostTipped',         // 17: 差點傾倒 (0/1)
-  'ridingOnBall',         // 18: 騎在球上 (0/1)
-  'comments'              // 19: 備註
+  'robotDied',            // 17: 機器人故障 (0/1)
+  'almostTipped',         // 18: 差點傾倒 (0/1)
+  'ridingOnBall',         // 19: 騎 Fuel (0/1)
+  'comments'              // 20: 備註
 ];
 
 /**
- * Path Data QR - 4 個欄位
+ * Path Data QR - 5 個欄位
  * 對應 SCANNER_INTEGRATION.md 的 TSV_SCHEMA_PATH
  */
 const TSV_SCHEMA_PATH = [
   'eventCode',    // 0: 賽事代碼
   'matchNumber',  // 1: 場次編號
   'teamNumber',   // 2: 隊伍號碼
-  'autoPath'      // 3: 路徑座標 (x1,y1|x2,y2|...)
+  'alliance',     // 3: 聯盟 (R1/R2/R3/B1/B2/B3)
+  'autoPath'      // 4: 路徑座標 (x1,y1|x2,y2|...)
 ];
 
 /**
@@ -587,7 +588,8 @@ function testMatchUpload() {
     autoClimbStatus: 'Level1',
     autoClimbTime: '5',
     autoClimbPosition: 'Center',
-    bumpTrenchCount: '2',
+    bumpCount: '2',
+    trenchCount: '1',
     fuelDroppedOnBumpCount: '0',
     minorPenalty: '1',
     majorPenalty: '0',
@@ -613,6 +615,7 @@ function testPathUpload() {
     eventCode: '2026TEST',
     matchNumber: '1',
     teamNumber: '6998',
+    alliance: 'R1',
     autoPath: '40.5,50.0|42.3,48.2|45.0,45.5|50.0,40.0',
     scanTime: new Date().toISOString()
   };
