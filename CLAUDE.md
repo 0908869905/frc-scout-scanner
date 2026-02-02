@@ -25,7 +25,7 @@ Scouting App → QR Code (LZ-String Base64 壓縮) → Scanner App → 解碼 �
 - **Match Data QR**：20 個欄位，包含比賽數據 (v1.3.0)
 - **Auto Path QR**：4 個欄位，包含自動路徑
 - **Pit Scouting QR**：13 個欄位，包含隊伍資訊
-- **Pit External QR**：23 個欄位，FRC6998 Pit Collect 格式
+- **Pit External QR**：22 個欄位，FRC6998 Pit Collect 格式
 
 ### 關鍵依賴
 
@@ -193,14 +193,14 @@ const TSV_SCHEMA_PIT = [
 ];
 ```
 
-### Pit External (23 欄位) - FRC6998 Pit Collect
+### Pit External (22 欄位) - FRC6998 Pit Collect
 
 ```typescript
 const TSV_SCHEMA_PIT_EXTERNAL = [
   'teamNumber', 'scouterName', 'chassisType', 'weight', 'maxCapacity',
   'intake', 'visionHardware', 'visionSoftware', 'shooting', 'turret',
   'startLocation', 'preload', 'autoIntake', 'autoHang', 'autoTotal',
-  'crossMidfield', 'terrain', 'stability', 'climbLevel', 'climbPosition',
+  'crossMidfield', 'terrain', 'climbLevel', 'climbPosition',
   'climbTime', 'photosTaken', 'notes'
 ];
 ```
@@ -283,4 +283,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-01-28*
+*最後更新：2026-02-01*

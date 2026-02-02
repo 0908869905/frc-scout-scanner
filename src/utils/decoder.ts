@@ -4,7 +4,7 @@
  */
 
 import LZString from 'lz-string';
-import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL } from '../constants';
+import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL, TSV_SCHEMA_PIT_EXTERNAL_LEGACY } from '../constants';
 import type { QRType, DecodeResult, PathPoint } from '../types';
 
 /**
@@ -13,13 +13,14 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';           // 20 (v1.3.0)
-  if (length === TSV_SCHEMA_PATH.length) return 'path';             // 4
-  if (length === TSV_SCHEMA_PIT.length) return 'pit';               // 13
-  if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external'; // 23
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';                    // 20 (v1.3.0)
+  if (length === TSV_SCHEMA_PATH.length) return 'path';                      // 4
+  if (length === TSV_SCHEMA_PIT.length) return 'pit';                        // 13
+  if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';      // 22 (v2, 無 stability)
+  if (length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length) return 'pit-external'; // 23 (v1, 含 stability)
 
   // 記錄未知欄位數量以便除錯
-  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}`);
+  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length}`);
 
   return 'unknown';
 }
@@ -54,7 +55,10 @@ export function decodeQR(qrContent: string): DecodeResult {
       schema = TSV_SCHEMA_PIT;
       break;
     case 'pit-external':
-      schema = TSV_SCHEMA_PIT_EXTERNAL;
+      // 支援新版 (22 欄位) 和舊版 (23 欄位，含 stability)
+      schema = values.length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length
+        ? TSV_SCHEMA_PIT_EXTERNAL_LEGACY
+        : TSV_SCHEMA_PIT_EXTERNAL;
       break;
     default:
       // 未知类型，使用索引作为栏位名

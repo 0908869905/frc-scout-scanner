@@ -12,6 +12,7 @@
 4. [React StrictMode 問題](#react-strictmode-問題)
 5. [Google Sheets API](#google-sheets-api)
 6. [i18n 國際化](#i18n-國際化)
+7. [SVG viewBox 與場地圖比例對齊](#svg-viewbox-與場地圖比例對齊)
 
 ---
 
@@ -70,13 +71,21 @@ function detectQRType(values: string[]): 'match' | 'path' | 'pit' | 'unknown' {
 |------|--------|------|
 | Match Data | 22 | 新增 autoClimbPosition/teleClimbPosition，移除 defenseRating/driverSkill/speedRating |
 
-#### v1.3.0 (目前版本)
+#### v1.3.0
 | 類型 | 欄位數 | 變更 |
 |------|--------|------|
 | Match Data | 20 | 移除 autoClimbSide/teleClimbSide，climbPosition 合併為 5 選項 |
 | Path Data | 4 | 無變更 |
 | Pit Scouting | 13 | 無變更 |
 | Pit External | 23 | 新增 FRC6998 Pit Collect 格式 |
+
+#### v1.3.0 + Pit External v1.1 (目前版本)
+| 類型 | 欄位數 | 變更 |
+|------|--------|------|
+| Match Data | 20 | 無變更 |
+| Path Data | 4 | 無變更 |
+| Pit Scouting | 13 | 無變更 |
+| Pit External | 22 | 移除 stability 欄位（同步 FRC6998_Pit_Collect_2026 上游變更） |
 
 ---
 
@@ -368,13 +377,13 @@ x1,y1|x2,y2|x3,y3|...
 ### SVG 路徑繪製
 
 ```typescript
-// 將座標轉換為 SVG path
+// 將座標轉換為 SVG path（x 座標乘 2 映射到 0-200）
 const pathD = points
-  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 2} ${p.y}`)
   .join(' ');
 
-// SVG 使用 viewBox="0 0 100 100" 配合百分比座標
-<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+// SVG 使用 viewBox="0 0 200 100" 配合 2:1 場地圖比例
+<svg viewBox="0 0 200 100">
   <path d={pathD} stroke={color} />
 </svg>
 ```
@@ -384,6 +393,72 @@ const pathD = points
 1. **場地圖疊圖**：使用 `position: relative` + `absolute` 讓 SVG 疊在圖片上
 2. **多路徑比較**：使用陣列存儲多條路徑，分配不同顏色
 3. **視覺標記**：起點（實心圓）、終點（空心圓）、中間點（小圓點）
+
+---
+
+## SVG viewBox 與場地圖比例對齊
+
+### 發現日期：2026-01-30
+
+**問題**：Path Viewer 的場地圖為 2:1 寬高比（3902x1584），但 SVG viewBox 使用 `0 0 100 100`（1:1），導致圓點被壓扁、路徑位置偏移。
+
+### 原因分析
+
+三層不一致：
+
+1. **圖片層**：`object-contain` 保持原圖比例，容器內留白，與 Scouting App 的 `drawImage`（拉伸填滿）行為不同
+2. **SVG 層**：viewBox `0 0 100 100` 是正方形座標空間，疊在 2:1 容器上會被拉伸，圓圈變橢圓
+3. **座標層**：Scouting App 產出的座標 x/y 都是 0-100 百分比，直接繪製在 1:1 viewBox 上位置正確但形狀失真
+
+### 解決方案
+
+```
+圖片：object-contain → object-fill（拉伸填滿 2:1 容器）
+SVG：viewBox="0 0 100 100" → viewBox="0 0 200 100"（座標空間改為 2:1）
+座標：x * 2 映射到 0-200，y 保持 0-100
+```
+
+### 選擇理由
+
+- `object-fill` 而非 `object-cover`：與 Scouting App canvas `drawImage` 的拉伸行為完全一致
+- viewBox `200 100` 而非 `100 50`：x 軸放大而非 y 軸縮小，避免路徑線條變細
+- 移除 `preserveAspectRatio="none"`：viewBox 已正確匹配容器比例，不需要額外的非等比縮放
+
+### 關鍵教訓
+
+SVG 疊圖的 viewBox 必須與容器寬高比一致，否則圓形會變橢圓、路徑位置會偏移。座標映射要在數據層（乘 2）而非視覺層（preserveAspectRatio）解決。
+
+---
+
+## Pit Collect Schema 變更（stability 欄位移除）
+
+### 發現日期：2026-02-01
+
+**來源**：對比 https://github.com/minesoil/FRC6998_Pit_Collect_2026.git 最新代碼
+
+### 發現
+
+FRC6998 Pit Collect 應用已移除 `stability`（穩定性）欄位，導致 Pit External schema 從 23 欄位縮減為 22 欄位。
+
+### 變更前後對比
+
+```
+變更前 (23 欄位):
+... crossMidfield, terrain, stability, climbLevel, climbPosition, climbTime, photosTaken, notes
+
+變更後 (22 欄位):
+... crossMidfield, terrain, climbLevel, climbPosition, climbTime, photosTaken, notes
+```
+
+### 影響範圍
+
+1. `src/constants/schema.ts` - TSV_SCHEMA_PIT_EXTERNAL 移除 `stability`，FIELD_LABELS 移除對應標籤
+2. `src/utils/decoder.ts` - 使用 `.length` 動態取值，不需改動
+3. Scanner App 的 QR 解碼邏輯自動適應（依據 schema 長度判斷類型）
+
+### 關鍵教訓
+
+外部應用的 schema 會隨版本更新變動，需要定期對比上游代碼庫確認欄位是否一致。decoder.ts 使用動態長度判斷是正確的設計，避免了硬編碼欄位數的脆弱性。
 
 ---
 
@@ -397,4 +472,4 @@ const pathD = points
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-01-28*
+*最後更新：2026-02-01*

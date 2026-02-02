@@ -6,9 +6,48 @@
 
 ## 目前狀態
 
-**階段**：Schema v1.3.0 + Path Viewer 功能
-**完成度**：95%
-**最後更新**：2026-01-28
+**階段**：已部署上線 (Vercel)
+**完成度**：98%
+**最後更新**：2026-02-01
+
+---
+
+## Session: 2026-02-01
+
+### 完成項目
+- [x] 移除 debug console.log（`src/main.tsx` 中的 `isDev` 判斷和開發模式 log）
+- [x] 首次部署到 Vercel（`vercel --prod`），URL: https://frc-scout-scanner.vercel.app
+- [x] Pit Collect schema 同步修復：對比 FRC6998_Pit_Collect_2026 最新代碼，發現已移除 `stability` 欄位（23→22 欄位）
+- [x] 更新 `src/constants/schema.ts`：TSV_SCHEMA_PIT_EXTERNAL 移除 `stability`，FIELD_LABELS 移除對應標籤
+- [x] 重新部署到 Vercel（schema 更新後再次 `vercel --prod`）
+
+### 修改檔案
+- `src/main.tsx` - 移除 isDev 判斷和 debug console.log
+- `src/constants/schema.ts` - Pit External schema 23→22 欄位（移除 stability）
+
+### 5-Question Reboot Check
+1. **做什麼？** 清理 debug log、部署上線、同步 Pit Collect schema
+2. **進度？** 全部完成，已部署到 Vercel
+3. **下一步？** 實際比賽測試、確認 Pit Scouting 資料接收正常
+4. **阻礙？** 無
+5. **檔案？** `src/constants/schema.ts`（schema 定義），`src/utils/decoder.ts`（解碼器）
+
+---
+
+## Session: 2026-01-30
+
+### 完成項目
+- [x] 修復 Path Viewer 場地圖與路徑疊圖比例問題（圖片、SVG viewBox、座標三層修正）
+
+### 修改檔案
+- `src/pages/PathViewerPage.tsx` - 修復圖片 object-fit、SVG viewBox 2:1 比例、x 座標映射到 0-200 範圍
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 Path Viewer 場地圖與 SVG 路徑疊圖的比例失真
+2. **進度？** 已完成，commit 並 push 到 main
+3. **下一步？** 部署到 Vercel，移除 debug log
+4. **阻礙？** 無
+5. **檔案？** `src/pages/PathViewerPage.tsx`
 
 ---
 
@@ -92,6 +131,18 @@
 ---
 
 ## 工作日誌
+
+### 2026-01-30
+
+**完成項目**：
+
+1. **Path Viewer 場地圖比例修復**
+   - 圖片：`object-contain` 改為 `object-fill`，拉伸填滿 2:1 容器，與 Scouting App 的 `drawImage` 行為一致
+   - SVG viewBox：`0 0 100 100` 改為 `0 0 200 100`，座標空間與視覺空間同為 2:1
+   - 移除 `preserveAspectRatio="none"`（viewBox 已正確匹配，不再需要）
+   - 所有 x 座標乘 2 映射到 0-200 範圍，y 保持 0-100，圓點不再因正方形 viewBox 被壓扁變形
+
+---
 
 ### 2026-01-28 (晚間場)
 
@@ -299,8 +350,8 @@ frc-scout-scanner/
 3. ~~完成 Google Apps Script~~ ✅
 4. ~~部署 Google Apps Script 到 Google Sheets~~ ✅
 5. ~~與 Scouting App 進行整合測試~~ ✅
-6. 部署到 Vercel
-7. 移除 debug console.log
+6. ~~部署到 Vercel~~ ✅ (https://frc-scout-scanner.vercel.app)
+7. ~~移除 debug console.log~~ ✅
 
 ---
 
@@ -323,7 +374,7 @@ frc-scout-scanner/
 - Match Data: 20 欄位（不含 autoPath）
 - Path Data: 4 欄位
 - Pit Scouting: 13 欄位
-- Pit External (Pit Collect): 23 欄位
+- Pit External (Pit Collect): 22 欄位（v1.1: 移除 stability）
 - Apps Script 會自動將 Path 合併到對應的 Match
 - Path Viewer 可輸入座標字串可視化路徑
 

@@ -58,8 +58,34 @@ export const TSV_SCHEMA_PIT = [
   'pitAutoNotes',
 ] as const;
 
-// Pit External TSV Schema (23 栏位) - FRC6998 Pit Collect
+// Pit External TSV Schema (22 栏位) - FRC6998 Pit Collect v2 (stability 已移除)
 export const TSV_SCHEMA_PIT_EXTERNAL = [
+  'teamNumber',
+  'scouterName',
+  'chassisType',
+  'weight',
+  'maxCapacity',
+  'intake',
+  'visionHardware',
+  'visionSoftware',
+  'shooting',
+  'turret',
+  'startLocation',
+  'preload',
+  'autoIntake',
+  'autoHang',
+  'autoTotal',
+  'crossMidfield',
+  'terrain',
+  'climbLevel',
+  'climbPosition',
+  'climbTime',
+  'photosTaken',
+  'notes',
+] as const;
+
+// Pit External TSV Schema Legacy (23 栏位) - FRC6998 Pit Collect v1 (含 stability)
+export const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
   'teamNumber',
   'scouterName',
   'chassisType',
@@ -90,7 +116,8 @@ export const SCHEMA_LENGTHS = {
   match: TSV_SCHEMA_MATCH.length,      // 20
   path: TSV_SCHEMA_PATH.length,        // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
-  pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 23
+  pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 22
+  pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23
 } as const;
 
 // 栏位显示名称（中文）- v1.3.0 更新
