@@ -20,11 +20,6 @@ interface PathData {
   flipped: boolean;
 }
 
-// Starting zone configuration (must match scouting app constants.ts)
-const STARTING_ZONE_WIDTH = 3.5;
-const RED_STARTING_ZONE_OFFSET = 25;
-const BLUE_STARTING_ZONE_OFFSET = 68;
-
 // 預設路徑顏色
 const PATH_COLORS = [
   '#22c55e', // green
@@ -202,27 +197,6 @@ export function PathViewerPage() {
             className="absolute inset-0 w-full h-full"
             viewBox="0 0 200 100"
           >
-            {/* Starting zones */}
-            <rect
-              x={RED_STARTING_ZONE_OFFSET * 2}
-              y={0}
-              width={STARTING_ZONE_WIDTH * 2}
-              height={100}
-              fill="rgba(239, 68, 68, 0.15)"
-              stroke="rgba(239, 68, 68, 0.4)"
-              strokeWidth="0.5"
-              strokeDasharray="3 2"
-            />
-            <rect
-              x={BLUE_STARTING_ZONE_OFFSET * 2}
-              y={0}
-              width={STARTING_ZONE_WIDTH * 2}
-              height={100}
-              fill="rgba(59, 130, 246, 0.15)"
-              stroke="rgba(59, 130, 246, 0.4)"
-              strokeWidth="0.5"
-              strokeDasharray="3 2"
-            />
             {paths.filter(p => p.visible).map(path => {
               const rawPoints = parsePathString(path.coords);
               if (rawPoints.length < 2) return null;
