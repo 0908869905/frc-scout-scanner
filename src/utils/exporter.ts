@@ -2,7 +2,7 @@
  * FRC Scout Scanner - 导出工具
  */
 
-import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT } from '../constants';
+import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT_PATH, TSV_SCHEMA_PIT } from '../constants';
 import type { ScanHistoryItem, QRType } from '../types';
 
 /**
@@ -29,7 +29,11 @@ export function exportToCSV(
     case 'path':
       schema = TSV_SCHEMA_PATH;
       break;
+    case 'pit-path':
+      schema = TSV_SCHEMA_PIT_PATH;
+      break;
     case 'pit':
+    case 'pit-external':
       schema = TSV_SCHEMA_PIT;
       break;
     default:
@@ -84,8 +88,8 @@ export function exportAllToJSON(items: ScanHistoryItem[]): string {
     totalCount: items.length,
     counts: {
       match: items.filter(i => i.qrType === 'match').length,
-      path: items.filter(i => i.qrType === 'path').length,
-      pit: items.filter(i => i.qrType === 'pit').length,
+      path: items.filter(i => i.qrType === 'path' || i.qrType === 'pit-path').length,
+      pit: items.filter(i => i.qrType === 'pit' || i.qrType === 'pit-external').length,
     },
     items: items.map(item => ({
       id: item.id,

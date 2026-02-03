@@ -34,6 +34,7 @@ export const zhTW = {
     warnings: '個警告',
     saved: '資料已儲存',
     pathMerged: '路徑資料已合併',
+    pitPathMerged: '路徑資料已合併到 Pit',
     incomplete: '資料不完整，無法儲存',
     alreadyExists: '已存在',
   },
@@ -107,6 +108,7 @@ export const zhTW = {
   qrType: {
     match: '比賽資料',
     path: '路徑資料',
+    pitPath: 'Pit 路徑資料',
     pit: 'Pit 資料',
     unknown: '未知格式',
   },

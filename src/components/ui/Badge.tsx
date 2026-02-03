@@ -51,6 +51,11 @@ const variantStyles: Record<string, { bg: string; text: string; border: string }
     text: 'text-amber-400',
     border: 'border-amber-500/50',
   },
+  'pit-path': {
+    bg: 'bg-amber-600/20',
+    text: 'text-amber-500',
+    border: 'border-amber-600/50',
+  },
   pit: {
     bg: 'bg-violet-500/20',
     text: 'text-violet-400',
@@ -102,7 +107,9 @@ export function QRTypeBadge({ type, className = '' }: QRTypeBadgeProps) {
   const labels: Record<QRType, string> = {
     match: t.qrType.match,
     path: t.qrType.path,
+    'pit-path': t.qrType.pitPath,
     pit: t.qrType.pit,
+    'pit-external': t.qrType.pit,
     unknown: t.qrType.unknown,
   };
 

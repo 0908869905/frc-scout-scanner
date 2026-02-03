@@ -64,8 +64,8 @@ export async function uploadToSheets(
     };
   }
 
-  // pit-external 轉換成 pit，Apps Script 用相同邏輯處理
-  const uploadType = type === 'pit-external' ? 'pit' : type;
+  // pit-external 轉換成 pit，pit-path 轉換成 path，Apps Script 用相同邏輯處理
+  const uploadType = type === 'pit-external' ? 'pit' : type === 'pit-path' ? 'path' : type;
 
   const payload: UploadPayload = {
     type: uploadType,
@@ -155,11 +155,11 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
   const invalidCount = items.length - validItems.length;
 
   // 嘗試使用批次 API
-  // 注意：pit-external 轉換成 pit，因為 Apps Script 用相同邏輯處理
+  // 注意：pit-external 轉換成 pit，pit-path 轉換成 path，因為 Apps Script 用相同邏輯處理
   const payload: BatchUploadPayload = {
     type: 'batch',
     data: validItems.map(item => ({
-      type: item.qrType === 'pit-external' ? 'pit' : item.qrType,
+      type: item.qrType === 'pit-external' ? 'pit' : item.qrType === 'pit-path' ? 'path' : item.qrType,
       data: {
         ...item.data,
         scanTime: item.scanTime || new Date().toISOString(),  // Apps Script 期望 scanTime

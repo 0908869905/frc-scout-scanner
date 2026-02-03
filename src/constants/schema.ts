@@ -34,12 +34,21 @@ export const TSV_SCHEMA_MATCH = [
   'comments',
 ] as const;
 
-// Path Data TSV Schema (5 栏位)
+// Path Data TSV Schema (5 栏位) - Scouting PASS
 export const TSV_SCHEMA_PATH = [
   'eventCode',
   'matchNumber',
   'teamNumber',
   'alliance',
+  'autoPath',
+] as const;
+
+// Pit Collect Path TSV Schema (4 栏位) - FRC6998 Pit Collect 路径 QR
+// eventCode 固定 "2026PIT"，matchNumber 固定 "0"
+export const TSV_SCHEMA_PIT_PATH = [
+  'eventCode',
+  'matchNumber',
+  'teamNumber',
   'autoPath',
 ] as const;
 
@@ -117,6 +126,7 @@ export const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
 export const SCHEMA_LENGTHS = {
   match: TSV_SCHEMA_MATCH.length,      // 21
   path: TSV_SCHEMA_PATH.length,        // 5
+  pitPath: TSV_SCHEMA_PIT_PATH.length, // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 22
   pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23

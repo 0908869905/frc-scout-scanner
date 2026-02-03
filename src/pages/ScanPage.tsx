@@ -2,10 +2,10 @@
  * FRC Scout Scanner - 扫描页面
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Scanner, UploadQueue } from '../components/scanner';
 import { validateData } from '../utils/validator';
-import { getMatchKey, isValidDecodeResult } from '../utils/decoder';
+import { getMatchKey, getPitPathKey, isValidDecodeResult } from '../utils/decoder';
 import { generateId } from '../utils/storage';
 import { uploadBatch } from '../utils/sheets';
 import { useI18n } from '../i18n';
@@ -28,9 +28,15 @@ export function ScanPage({
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // 使用 ref 保持最新的 history，避免 handleScan 閉包中的 stale reference
+  // （連續掃描多張 QR 時，閉包中的 history 可能還是上次 render 的舊值）
+  const historyRef = useRef(history);
+  historyRef.current = history;
+
   // 处理扫描结果 - 直接儲存，不需確認
   const handleScan = useCallback((result: DecodeResult) => {
     setError(null);
+    const currentHistory = historyRef.current;
 
     // 驗證基本資料
     if (!isValidDecodeResult(result)) {
@@ -40,17 +46,47 @@ export function ScanPage({
       return;
     }
 
-    const matchKey = getMatchKey(result.data);
+    const matchKey = result.type === 'pit-path'
+      ? getPitPathKey(result.data)
+      : getMatchKey(result.data);
+
+    // 檢查 pit-path 是否需要合併到 pit-external
+    if (result.type === 'pit-path') {
+      const pitExtItem = currentHistory.find(
+        (h) => h.qrType === 'pit-external' &&
+               h.data.teamNumber === result.data.teamNumber
+      );
+
+      if (pitExtItem) {
+        // 合併 autoPath 到 pit-external（多條路徑用分號分隔）
+        const existingPath = pitExtItem.data.autoPath;
+        const newPath = result.data.autoPath;
+        const mergedPath = existingPath && existingPath !== 'None'
+          ? `${existingPath};${newPath}`
+          : newPath;
+
+        const updatedHistory = currentHistory.map((h) =>
+          h.id === pitExtItem.id
+            ? { ...h, data: { ...h.data, autoPath: mergedPath } }
+            : h
+        );
+        onUpdateHistory(updatedHistory);
+        onShowToast('success', t.result.pitPathMerged);
+        return;
+      }
+
+      // 找不到 pit-external，獨立保存為 pit-path
+    }
 
     // 檢查 Path 是否需要配對到現有 Match
     if (result.type === 'path') {
-      const matchItem = history.find(
+      const matchItem = currentHistory.find(
         (h) => h.qrType === 'match' && h.matchKey === matchKey
       );
 
       if (matchItem) {
         // 將路徑數據合併到 Match
-        const updatedHistory = history.map((h) =>
+        const updatedHistory = currentHistory.map((h) =>
           h.id === matchItem.id
             ? { ...h, data: { ...h.data, autoPath: result.data.autoPath } }
             : h
@@ -61,13 +97,15 @@ export function ScanPage({
       }
     }
 
-    // 檢查是否重複（相同 matchKey）
-    const existingItem = history.find(
-      (h) => h.qrType === result.type && h.matchKey === matchKey
-    );
-    if (existingItem) {
-      onShowToast('info', `${result.type === 'match' ? 'Match' : 'Path'} ${result.data.teamNumber} #${result.data.matchNumber} ${t.result.alreadyExists || '已存在'}`);
-      return;
+    // 檢查是否重複（相同 matchKey）— pit-path 不做重複檢查（允許多條路徑獨立存放）
+    if (result.type !== 'pit-path') {
+      const existingItem = currentHistory.find(
+        (h) => h.qrType === result.type && h.matchKey === matchKey
+      );
+      if (existingItem) {
+        onShowToast('info', `${result.type === 'match' ? 'Match' : 'Path'} ${result.data.teamNumber} #${result.data.matchNumber} ${t.result.alreadyExists || '已存在'}`);
+        return;
+      }
     }
 
     // 驗證數據
@@ -90,7 +128,7 @@ export function ScanPage({
     const teamNum = result.data.teamNumber || '?';
     const matchNum = result.data.matchNumber || '?';
     onShowToast('success', `✓ ${teamNum} #${matchNum}`);
-  }, [history, onAddHistory, onUpdateHistory, onShowToast, t.result]);
+  }, [onAddHistory, onUpdateHistory, onShowToast, t.result]);
 
   // 处理扫描错误
   const handleError = useCallback((errorMessage: string) => {
@@ -100,7 +138,8 @@ export function ScanPage({
 
   // 上传所有待上传的数据
   const handleUploadAll = useCallback(async () => {
-    const pendingItems = history.filter((h) => !h.uploaded);
+    const currentHistory = historyRef.current;
+    const pendingItems = currentHistory.filter((h) => !h.uploaded);
     if (pendingItems.length === 0) {
       onShowToast('info', t.upload.noItems);
       return;
@@ -117,7 +156,7 @@ export function ScanPage({
           .map((h) => h.id)
       );
 
-      const updatedHistory = history.map((h) =>
+      const updatedHistory = historyRef.current.map((h) =>
         uploadedIds.has(h.id)
           ? { ...h, uploaded: true, uploadTime: new Date().toISOString() }
           : h
@@ -135,7 +174,7 @@ export function ScanPage({
     } finally {
       setIsUploading(false);
     }
-  }, [history, onUpdateHistory, onShowToast, t.upload]);
+  }, [onUpdateHistory, onShowToast, t.upload]);
 
   return (
     <div className="space-y-4">

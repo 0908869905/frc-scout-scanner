@@ -4,7 +4,7 @@
  */
 
 import LZString from 'lz-string';
-import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL, TSV_SCHEMA_PIT_EXTERNAL_LEGACY } from '../constants';
+import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL, TSV_SCHEMA_PIT_EXTERNAL_LEGACY } from '../constants';
 import type { QRType, DecodeResult, PathPoint } from '../types';
 
 /**
@@ -15,12 +15,13 @@ export function detectQRType(values: string[]): QRType {
 
   if (length === TSV_SCHEMA_MATCH.length) return 'match';                    // 21 (v1.4.0)
   if (length === TSV_SCHEMA_PATH.length) return 'path';                      // 5
+  if (length === TSV_SCHEMA_PIT_PATH.length) return 'pit-path';              // 4 (Pit Collect path / legacy path)
   if (length === TSV_SCHEMA_PIT.length) return 'pit';                        // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';      // 22 (v2, 無 stability)
   if (length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length) return 'pit-external'; // 23 (v1, 含 stability)
 
   // 記錄未知欄位數量以便除錯
-  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length}`);
+  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length}`);
 
   return 'unknown';
 }
@@ -50,6 +51,9 @@ export function decodeQR(qrContent: string): DecodeResult {
       break;
     case 'path':
       schema = TSV_SCHEMA_PATH;
+      break;
+    case 'pit-path':
+      schema = TSV_SCHEMA_PIT_PATH;
       break;
     case 'pit':
       schema = TSV_SCHEMA_PIT;
@@ -139,6 +143,15 @@ export function getPitKey(data: {
 }
 
 /**
+ * 产生 Pit Path Key（用 teamNumber 配对）
+ */
+export function getPitPathKey(data: {
+  teamNumber?: string;
+}): string {
+  return `pit-path_${data.teamNumber || ''}`;
+}
+
+/**
  * 产生外部 Pit Key（没有 eventCode）
  */
 export function getPitExternalKey(data: {
@@ -162,6 +175,8 @@ export function isValidDecodeResult(result: DecodeResult): boolean {
       return !!(result.data.eventCode && result.data.matchNumber && result.data.teamNumber);
     case 'path':
       return !!(result.data.eventCode && result.data.matchNumber && result.data.teamNumber);
+    case 'pit-path':
+      return !!(result.data.teamNumber && result.data.autoPath);
     case 'pit':
       return !!(result.data.eventCode && result.data.teamNumber);
     case 'pit-external':

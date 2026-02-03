@@ -36,6 +36,7 @@ export const en: Translations = {
     warnings: 'warning(s)',
     saved: 'Data saved successfully',
     pathMerged: 'Path data merged with match',
+    pitPathMerged: 'Path data merged with pit',
     incomplete: 'Data is incomplete, cannot save',
     alreadyExists: 'already exists',
   },
@@ -109,6 +110,7 @@ export const en: Translations = {
   qrType: {
     match: 'Match Data',
     path: 'Path Data',
+    pitPath: 'Pit Path Data',
     pit: 'Pit Data',
     unknown: 'Unknown',
   },

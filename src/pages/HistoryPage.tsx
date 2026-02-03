@@ -110,9 +110,21 @@ export function HistoryPage({
         exported++;
       }
 
+      const pitPathCSV = exportToCSV(history, 'pit-path');
+      if (pitPathCSV) {
+        downloadFile(pitPathCSV, getExportFilename('pit-path', 'csv'), 'text/csv');
+        exported++;
+      }
+
       const pitCSV = exportToCSV(history, 'pit');
       if (pitCSV) {
         downloadFile(pitCSV, getExportFilename('pit', 'csv'), 'text/csv');
+        exported++;
+      }
+
+      const pitExternalCSV = exportToCSV(history, 'pit-external');
+      if (pitExternalCSV) {
+        downloadFile(pitExternalCSV, getExportFilename('pit-external', 'csv'), 'text/csv');
         exported++;
       }
 

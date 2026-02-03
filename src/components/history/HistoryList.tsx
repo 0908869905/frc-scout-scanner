@@ -79,8 +79,8 @@ export function HistoryList({
   const stats = useMemo(() => ({
     total: items.length,
     match: items.filter((i) => i.qrType === 'match').length,
-    path: items.filter((i) => i.qrType === 'path').length,
-    pit: items.filter((i) => i.qrType === 'pit').length,
+    path: items.filter((i) => i.qrType === 'path' || i.qrType === 'pit-path').length,
+    pit: items.filter((i) => i.qrType === 'pit' || i.qrType === 'pit-external').length,
     uploaded: items.filter((i) => i.uploaded).length,
     pending: items.filter((i) => !i.uploaded).length,
   }), [items]);

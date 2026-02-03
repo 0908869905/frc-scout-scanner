@@ -28,10 +28,16 @@ export function HistoryItem({
         secondary: `${data.eventCode || '?'} | #${data.matchNumber || '?'}`,
       };
     }
-    if (qrType === 'pit') {
+    if (qrType === 'pit-path') {
       return {
         primary: `Team ${data.teamNumber || '?'}`,
-        secondary: data.eventCode || '?',
+        secondary: 'Pit Path',
+      };
+    }
+    if (qrType === 'pit' || qrType === 'pit-external') {
+      return {
+        primary: `Team ${data.teamNumber || '?'}`,
+        secondary: data.eventCode || 'Pit Collect',
       };
     }
     return {

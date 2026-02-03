@@ -170,6 +170,17 @@ export function validateData(
       }
       break;
 
+    case 'pit-path':
+      if (!data.teamNumber || !data.autoPath) {
+        errors.push({
+          field: 'pitPathKey',
+          value: `${data.teamNumber}`,
+          message: 'Pit 路径资料缺少队伍编号或路径',
+          severity: 'error',
+        });
+      }
+      break;
+
     case 'pit':
       if (!data.eventCode || !data.teamNumber) {
         errors.push({

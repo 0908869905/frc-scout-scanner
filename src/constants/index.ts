@@ -17,6 +17,7 @@ export const MATCH_LEVEL_MAP: Record<string, string> = {
 export const QR_TYPE_COLORS = {
   match: '#06b6d4',       // cyan-500
   path: '#f59e0b',        // amber-500
+  'pit-path': '#d97706',  // amber-600
   pit: '#8b5cf6',         // violet-500
   'pit-external': '#a855f7', // purple-500
   unknown: '#64748b',     // slate-500
@@ -26,6 +27,7 @@ export const QR_TYPE_COLORS = {
 export const QR_TYPE_LABELS = {
   match: '比赛资料',
   path: '路径资料',
+  'pit-path': 'Pit 路径资料',
   pit: 'Pit 资料',
   'pit-external': 'Pit 资料 (外部)',
   unknown: '未知格式',

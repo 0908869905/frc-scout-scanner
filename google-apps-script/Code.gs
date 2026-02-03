@@ -109,7 +109,8 @@ const TSV_SCHEMA_PIT = [
   'climbPosition',   // 19: 爬升位置
   'climbTime',       // 20: 爬升時間
   'photosTaken',     // 21: 已拍照 (0/1)
-  'notes'            // 22: 備註
+  'notes',           // 22: 備註
+  'autoPath'         // 23: 自動路徑（由 Pit Collect Path QR 合併）
 ];
 
 /**
@@ -297,8 +298,9 @@ function handleMatchData(data) {
 function handlePathData(data) {
   const uploadTime = new Date().toISOString();
 
-  // 如果啟用自動合併，嘗試將 Path 合併到對應的 Match
+  // 如果啟用自動合併，嘗試將 Path 合併到對應的 Match 或 Pit
   if (CONFIG.AUTO_MERGE_PATH) {
+    // 1. 先嘗試合併到 Match（Scouting PASS 的 path）
     const matchSheet = getSheet(CONFIG.SHEET_MATCH);
     if (matchSheet) {
       const matchKey = getMatchKey(data);
@@ -313,6 +315,28 @@ function handlePathData(data) {
           message: `Merged path data to match record at row ${matchRow}`,
           rowNumber: matchRow
         };
+      }
+    }
+
+    // 2. 再嘗試合併到 Pit（Pit Collect 的 path）
+    const pitSheet = getSheet(CONFIG.SHEET_PIT);
+    if (pitSheet && data.teamNumber) {
+      const pitRow = findRowByTeamNumber(pitSheet, data.teamNumber, SHEET_HEADERS.PIT);
+      if (pitRow > 0) {
+        const autoPathColIndex = SHEET_HEADERS.PIT.indexOf('autoPath') + 1;
+        if (autoPathColIndex > 0) {
+          // 支援多路徑合併（分號分隔）
+          const existing = pitSheet.getRange(pitRow, autoPathColIndex).getValue();
+          const newValue = existing && String(existing) !== 'None' && String(existing) !== ''
+            ? String(existing) + ';' + (data.autoPath || 'None')
+            : (data.autoPath || 'None');
+          pitSheet.getRange(pitRow, autoPathColIndex).setValue(newValue);
+
+          return {
+            message: `Merged path data to pit record at row ${pitRow}`,
+            rowNumber: pitRow
+          };
+        }
       }
     }
   }
@@ -340,8 +364,13 @@ function handlePitData(data) {
   const existingRow = findRowByTeamNumber(sheet, data.teamNumber, SHEET_HEADERS.PIT);
 
   if (existingRow > 0) {
-    // 更新現有紀錄
-    const row = buildPitRow(data, data.scanTime, uploadTime);
+    // 更新現有紀錄（保留已合併的 autoPath）
+    const existingData = getRowData(sheet, existingRow, SHEET_HEADERS.PIT);
+    const mergedData = { ...data };
+    if (!mergedData.autoPath || mergedData.autoPath === 'None') {
+      mergedData.autoPath = existingData.autoPath || 'None';
+    }
+    const row = buildPitRow(mergedData, data.scanTime, uploadTime);
     sheet.getRange(existingRow, 1, 1, row.length).setValues([row]);
 
     return {

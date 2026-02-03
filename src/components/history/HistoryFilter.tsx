@@ -25,6 +25,7 @@ export function HistoryFilter({
     { value: 'all', label: t.history.allTypes },
     { value: 'match', label: t.qrType.match },
     { value: 'path', label: t.qrType.path },
+    { value: 'pit-path', label: t.qrType.pitPath },
     { value: 'pit', label: t.qrType.pit },
   ];
 
