@@ -104,6 +104,24 @@ export const zhTW = {
     language: '語言',
   },
 
+  // 路徑查詢
+  pathQuery: {
+    title: '從後端查詢',
+    eventCode: '賽事代碼',
+    matchLevel: '比賽等級',
+    matchNumber: '場次編號',
+    query: '查詢',
+    querying: '查詢中...',
+    resultCount: '找到 {count} 條路徑',
+    noResults: '未找到路徑資料',
+    noApiUrl: '請先在設定頁面配置 Google Sheets API URL',
+    practice: '練習賽',
+    quals: '資格賽',
+    playoff: '季後賽',
+    other: '其他',
+    manualAdd: '手動新增路徑',
+  },
+
   // QR 類型
   qrType: {
     match: '比賽資料',

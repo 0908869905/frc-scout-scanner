@@ -307,6 +307,82 @@ export async function testConnection(url: string): Promise<{
 }
 
 /**
+ * 查詢比賽路徑資料
+ */
+export async function queryMatchPaths(params: {
+  eventCode: string;
+  matchLevel: string;
+  matchNumber: string;
+}): Promise<{
+  success: boolean;
+  paths: Array<{ teamNumber: string; alliance: string; autoPath: string }>;
+  message: string;
+}> {
+  const settings = loadSettings();
+
+  if (!settings.sheetsApiUrl) {
+    return {
+      success: false,
+      paths: [],
+      message: '尚未設定 Google Sheets API URL',
+    };
+  }
+
+  try {
+    const url = new URL(settings.sheetsApiUrl);
+    url.searchParams.set('action', 'queryPaths');
+    url.searchParams.set('eventCode', params.eventCode);
+    url.searchParams.set('matchLevel', params.matchLevel);
+    url.searchParams.set('matchNumber', params.matchNumber);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'follow',
+    });
+
+    const text = await response.text();
+
+    let result: {
+      success: boolean;
+      paths?: Array<{ teamNumber: string; alliance: string; autoPath: string }>;
+      count?: number;
+      error?: string;
+    };
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      return {
+        success: false,
+        paths: [],
+        message: '回應格式錯誤: ' + text.substring(0, 100),
+      };
+    }
+
+    if (result.success) {
+      return {
+        success: true,
+        paths: result.paths || [],
+        message: `找到 ${result.count || 0} 條路徑`,
+      };
+    } else {
+      return {
+        success: false,
+        paths: [],
+        message: result.error || '查詢失敗',
+      };
+    }
+  } catch (error) {
+    console.error('[QueryPaths] Error:', error);
+    return {
+      success: false,
+      paths: [],
+      message: `查詢失敗: ${error instanceof Error ? error.message : '網路錯誤'}`,
+    };
+  }
+}
+
+/**
  * 發送測試資料
  */
 export async function sendTestData(url: string): Promise<{

@@ -106,6 +106,24 @@ export const en: Translations = {
     language: 'Language',
   },
 
+  // Path Query
+  pathQuery: {
+    title: 'Query from Backend',
+    eventCode: 'Event Code',
+    matchLevel: 'Match Level',
+    matchNumber: 'Match Number',
+    query: 'Query',
+    querying: 'Querying...',
+    resultCount: 'Found {count} path(s)',
+    noResults: 'No path data found',
+    noApiUrl: 'Please configure Google Sheets API URL in Settings first',
+    practice: 'Practice',
+    quals: 'Quals',
+    playoff: 'Playoff',
+    other: 'Other',
+    manualAdd: 'Add Path Manually',
+  },
+
   // QR Types
   qrType: {
     match: 'Match Data',

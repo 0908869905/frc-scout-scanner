@@ -7,6 +7,8 @@ import { useState, useCallback } from 'react';
 import { useI18n } from '../i18n';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { queryMatchPaths } from '../utils/sheets';
+import { loadSettings } from '../utils/storage';
 
 type PathAlliance = 'red' | 'blue' | 'unknown';
 
@@ -30,6 +32,18 @@ const PATH_COLORS = [
   '#06b6d4', // cyan
 ];
 
+// 查詢結果自動分配顏色（紅方用紅色系、藍方用藍色系）
+const RED_COLORS = ['#ef4444', '#f97316', '#f59e0b'];
+const BLUE_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6'];
+
+// matchLevel 下拉選單對應值
+const MATCH_LEVELS = [
+  { value: 'P', labelKey: 'practice' as const },
+  { value: 'QM', labelKey: 'quals' as const },
+  { value: 'PO', labelKey: 'playoff' as const },
+  { value: 'X', labelKey: 'other' as const },
+];
+
 // 解析座標字串
 function parsePathString(pathStr: string): { x: number; y: number }[] {
   if (!pathStr || pathStr === 'None' || pathStr.trim() === '') {
@@ -48,6 +62,14 @@ export function PathViewerPage() {
   const [inputValue, setInputValue] = useState('');
   const [pathName, setPathName] = useState('');
   const [pathAlliance, setPathAlliance] = useState<PathAlliance>('unknown');
+  const [showManualAdd, setShowManualAdd] = useState(false);
+
+  // 查詢相關 state
+  const [queryEventCode, setQueryEventCode] = useState('');
+  const [queryMatchLevel, setQueryMatchLevel] = useState('QM');
+  const [queryMatchNumber, setQueryMatchNumber] = useState('');
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [queryMessage, setQueryMessage] = useState('');
 
   // 新增路徑
   const handleAddPath = useCallback(() => {
@@ -67,6 +89,70 @@ export function PathViewerPage() {
     setInputValue('');
     setPathName('');
   }, [inputValue, pathName, paths.length, pathAlliance]);
+
+  // 查詢後端路徑
+  const handleQueryPaths = useCallback(async () => {
+    if (!queryEventCode.trim() || !queryMatchNumber.trim()) return;
+
+    const settings = loadSettings();
+    if (!settings.sheetsApiUrl) {
+      setQueryMessage(t.pathQuery.noApiUrl);
+      return;
+    }
+
+    setQueryLoading(true);
+    setQueryMessage('');
+
+    try {
+      const result = await queryMatchPaths({
+        eventCode: queryEventCode.trim(),
+        matchLevel: queryMatchLevel,
+        matchNumber: queryMatchNumber.trim(),
+      });
+
+      if (result.success && result.paths.length > 0) {
+        let redCount = 0;
+        let blueCount = 0;
+
+        const newPaths: PathData[] = result.paths.map((p) => {
+          const isRed = p.alliance.startsWith('R');
+          const isBlue = p.alliance.startsWith('B');
+          const alliance: PathAlliance = isRed ? 'red' : isBlue ? 'blue' : 'unknown';
+          let color: string;
+
+          if (isRed) {
+            color = RED_COLORS[redCount % RED_COLORS.length];
+            redCount++;
+          } else if (isBlue) {
+            color = BLUE_COLORS[blueCount % BLUE_COLORS.length];
+            blueCount++;
+          } else {
+            color = PATH_COLORS[(redCount + blueCount) % PATH_COLORS.length];
+          }
+
+          return {
+            id: Date.now().toString() + '_' + p.teamNumber,
+            name: `Team ${p.teamNumber}`,
+            coords: p.autoPath,
+            color,
+            alliance,
+            visible: true,
+            flipped: false,
+          };
+        });
+
+        // 清除之前的查詢結果，載入新結果
+        setPaths(newPaths);
+        setQueryMessage(t.pathQuery.resultCount.replace('{count}', String(result.paths.length)));
+      } else {
+        setQueryMessage(result.paths.length === 0 ? t.pathQuery.noResults : result.message);
+      }
+    } catch {
+      setQueryMessage(t.pathQuery.noResults);
+    } finally {
+      setQueryLoading(false);
+    }
+  }, [queryEventCode, queryMatchLevel, queryMatchNumber, t]);
 
   // 切換路徑顯示
   const togglePathVisibility = useCallback((id: string) => {
@@ -129,57 +215,129 @@ export function PathViewerPage() {
         <p className="text-sm text-slate-400">路徑可視化工具</p>
       </div>
 
-      {/* 輸入區 */}
+      {/* 查詢區 */}
       <Card>
+        <h3 className="text-sm font-semibold text-slate-300 mb-3">{t.pathQuery.title}</h3>
         <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">路徑名稱（選填）</label>
-            <input
-              type="text"
-              value={pathName}
-              onChange={(e) => setPathName(e.target.value)}
-              placeholder="例如：Team 6998 Match 1"
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">座標字串</label>
-            <textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="格式：x1,y1|x2,y2|x3,y3|..."
-              rows={3}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono text-sm"
-            />
-          </div>
-
-          {/* 聯盟選擇 */}
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">聯盟</label>
-            <div className="flex gap-2">
-              {(['red', 'blue', 'unknown'] as const).map(a => (
-                <button
-                  key={a}
-                  onClick={() => setPathAlliance(a)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold border-2 transition-all ${
-                    pathAlliance === a
-                      ? a === 'red' ? 'bg-red-500/20 border-red-500 text-red-400'
-                        : a === 'blue' ? 'bg-blue-500/20 border-blue-500 text-blue-400'
-                        : 'bg-slate-700/50 border-slate-500 text-slate-300'
-                      : 'bg-slate-900 border-slate-700 text-slate-500'
-                  }`}
-                >
-                  {a === 'red' ? 'Red' : a === 'blue' ? 'Blue' : '—'}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">{t.pathQuery.eventCode}</label>
+              <input
+                type="text"
+                value={queryEventCode}
+                onChange={(e) => setQueryEventCode(e.target.value)}
+                placeholder="e.g. 2026twsc"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">{t.pathQuery.matchLevel}</label>
+              <select
+                value={queryMatchLevel}
+                onChange={(e) => setQueryMatchLevel(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-brand-500 text-sm"
+              >
+                {MATCH_LEVELS.map(ml => (
+                  <option key={ml.value} value={ml.value}>
+                    {t.pathQuery[ml.labelKey]} ({ml.value})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-
-          <Button onClick={handleAddPath} disabled={!inputValue.trim()} fullWidth>
-            新增路徑
-          </Button>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs text-slate-400 mb-1">{t.pathQuery.matchNumber}</label>
+              <input
+                type="number"
+                value={queryMatchNumber}
+                onChange={(e) => setQueryMatchNumber(e.target.value)}
+                placeholder="1"
+                min="1"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-sm"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={handleQueryPaths}
+                disabled={queryLoading || !queryEventCode.trim() || !queryMatchNumber.trim()}
+              >
+                {queryLoading ? t.pathQuery.querying : t.pathQuery.query}
+              </Button>
+            </div>
+          </div>
+          {queryMessage && (
+            <p className="text-xs text-slate-400">{queryMessage}</p>
+          )}
         </div>
+      </Card>
+
+      {/* 手動輸入區（可折疊） */}
+      <Card>
+        <button
+          onClick={() => setShowManualAdd(!showManualAdd)}
+          className="w-full flex items-center justify-between text-sm font-semibold text-slate-300"
+        >
+          <span>{t.pathQuery.manualAdd}</span>
+          <svg
+            className={`w-4 h-4 transition-transform ${showManualAdd ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showManualAdd && (
+          <div className="space-y-3 mt-3">
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">路徑名稱（選填）</label>
+              <input
+                type="text"
+                value={pathName}
+                onChange={(e) => setPathName(e.target.value)}
+                placeholder="例如：Team 6998 Match 1"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">座標字串</label>
+              <textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="格式：x1,y1|x2,y2|x3,y3|..."
+                rows={3}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono text-sm"
+              />
+            </div>
+
+            {/* 聯盟選擇 */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">聯盟</label>
+              <div className="flex gap-2">
+                {(['red', 'blue', 'unknown'] as const).map(a => (
+                  <button
+                    key={a}
+                    onClick={() => setPathAlliance(a)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold border-2 transition-all ${
+                      pathAlliance === a
+                        ? a === 'red' ? 'bg-red-500/20 border-red-500 text-red-400'
+                          : a === 'blue' ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                          : 'bg-slate-700/50 border-slate-500 text-slate-300'
+                        : 'bg-slate-900 border-slate-700 text-slate-500'
+                    }`}
+                  >
+                    {a === 'red' ? 'Red' : a === 'blue' ? 'Blue' : '—'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={handleAddPath} disabled={!inputValue.trim()} fullWidth>
+              新增路徑
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* 場地圖 + 路徑疊圖 */}

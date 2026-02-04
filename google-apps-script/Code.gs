@@ -127,17 +127,25 @@ const SHEET_HEADERS = {
 // ============================================
 
 /**
- * 處理 GET 請求 - 用於測試連線
+ * 處理 GET 請求 - 用於測試連線 & 查詢 API
  */
 function doGet(e) {
-  const response = {
+  // 檢查是否有 action 參數
+  var action = e && e.parameter && e.parameter.action;
+
+  if (action === 'queryPaths') {
+    return handleQueryPaths(e.parameter);
+  }
+
+  var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.0.0',
+    version: '1.1.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
-      GET: 'API status check'
+      GET: 'API status check',
+      'GET ?action=queryPaths': 'Query path data by match'
     },
     schema: {
       match: TSV_SCHEMA_MATCH.length,
@@ -147,6 +155,122 @@ function doGet(e) {
   };
 
   return createJsonResponse(response);
+}
+
+/**
+ * 處理查詢路徑 API
+ * GET ?action=queryPaths&eventCode=XXX&matchLevel=YY&matchNumber=ZZ
+ */
+function handleQueryPaths(params) {
+  try {
+    var eventCode = params.eventCode;
+    var matchLevel = params.matchLevel;
+    var matchNumber = params.matchNumber;
+
+    if (!eventCode || !matchLevel || !matchNumber) {
+      return createJsonResponse({
+        success: false,
+        error: 'Missing required parameters: eventCode, matchLevel, matchNumber',
+        paths: [],
+        count: 0
+      });
+    }
+
+    var paths = queryPathsByMatch(eventCode, matchLevel, matchNumber);
+
+    return createJsonResponse({
+      success: true,
+      paths: paths,
+      count: paths.length,
+      query: { eventCode: eventCode, matchLevel: matchLevel, matchNumber: matchNumber }
+    });
+  } catch (error) {
+    return createJsonResponse({
+      success: false,
+      error: error.message,
+      paths: [],
+      count: 0
+    });
+  }
+}
+
+/**
+ * 從 Match Data 和 Path Data 工作表查詢路徑資料
+ */
+function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
+  var results = {};  // key: teamNumber, value: { teamNumber, alliance, autoPath }
+
+  // 1. 從 Match Data 工作表查詢
+  var matchSheet = getSheet(CONFIG.SHEET_MATCH);
+  if (matchSheet && matchSheet.getLastRow() > 1) {
+    var matchData = matchSheet.getDataRange().getValues();
+    var matchHeaders = matchData[0];
+
+    var eventIdx = matchHeaders.indexOf('eventCode');
+    var levelIdx = matchHeaders.indexOf('matchLevel');
+    var numberIdx = matchHeaders.indexOf('matchNumber');
+    var teamIdx = matchHeaders.indexOf('teamNumber');
+    var allianceIdx = matchHeaders.indexOf('alliance');
+    var autoPathIdx = matchHeaders.indexOf('autoPath');
+
+    for (var i = 1; i < matchData.length; i++) {
+      var row = matchData[i];
+      if (String(row[eventIdx]) === String(eventCode) &&
+          String(row[levelIdx]) === String(matchLevel) &&
+          String(row[numberIdx]) === String(matchNumber)) {
+        var team = String(row[teamIdx]);
+        var autoPath = autoPathIdx >= 0 ? String(row[autoPathIdx]) : '';
+        // 只加入有效路徑
+        if (autoPath && autoPath !== 'None' && autoPath.trim() !== '') {
+          results[team] = {
+            teamNumber: team,
+            alliance: String(row[allianceIdx] || ''),
+            autoPath: autoPath
+          };
+        }
+      }
+    }
+  }
+
+  // 2. 從 Path Data 工作表查詢（備用存儲）
+  var pathSheet = getSheet(CONFIG.SHEET_PATH);
+  if (pathSheet && pathSheet.getLastRow() > 1) {
+    var pathData = pathSheet.getDataRange().getValues();
+    var pathHeaders = pathData[0];
+
+    var pEventIdx = pathHeaders.indexOf('eventCode');
+    var pNumberIdx = pathHeaders.indexOf('matchNumber');
+    var pTeamIdx = pathHeaders.indexOf('teamNumber');
+    var pAllianceIdx = pathHeaders.indexOf('alliance');
+    var pAutoPathIdx = pathHeaders.indexOf('autoPath');
+
+    for (var j = 1; j < pathData.length; j++) {
+      var pRow = pathData[j];
+      if (String(pRow[pEventIdx]) === String(eventCode) &&
+          String(pRow[pNumberIdx]) === String(matchNumber)) {
+        var pTeam = String(pRow[pTeamIdx]);
+        var pAutoPath = pAutoPathIdx >= 0 ? String(pRow[pAutoPathIdx]) : '';
+        // Path Data 表沒有 matchLevel，只比對 eventCode + matchNumber
+        // 若 Match Data 已有該隊資料則跳過（Match Data 優先）
+        if (pAutoPath && pAutoPath !== 'None' && pAutoPath.trim() !== '' && !results[pTeam]) {
+          results[pTeam] = {
+            teamNumber: pTeam,
+            alliance: pAllianceIdx >= 0 ? String(pRow[pAllianceIdx] || '') : '',
+            autoPath: pAutoPath
+          };
+        }
+      }
+    }
+  }
+
+  // 轉換為陣列
+  var arr = [];
+  for (var key in results) {
+    if (results.hasOwnProperty(key)) {
+      arr.push(results[key]);
+    }
+  }
+  return arr;
 }
 
 /**
@@ -699,6 +823,15 @@ function initializeSheets() {
   console.log('Match columns:', SHEET_HEADERS.MATCH.length);
   console.log('Path columns:', SHEET_HEADERS.PATH.length);
   console.log('Pit columns:', SHEET_HEADERS.PIT.length);
+}
+
+/**
+ * 測試查詢路徑 API
+ */
+function testQueryPaths() {
+  var result = queryPathsByMatch('2026TEST', 'QM', '1');
+  console.log('Query result:', JSON.stringify(result));
+  console.log('Found', result.length, 'paths');
 }
 
 /**
