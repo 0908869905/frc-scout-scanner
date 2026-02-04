@@ -193,7 +193,7 @@ export function PathViewerPage() {
       }
 
       return {
-        id: Date.now().toString() + '_' + p.teamNumber + '_' + (isPit ? 'pit' + pitCount : p.matchNumber),
+        id: Date.now().toString() + '_' + p.teamNumber + '_' + (isPit ? 'pit' + pitCount : p.matchLevel + p.matchNumber),
         name, coords: p.autoPath, color, alliance, visible: true, flipped: false, source, queryKey,
       };
     });
