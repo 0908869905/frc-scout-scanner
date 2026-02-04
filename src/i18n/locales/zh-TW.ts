@@ -135,6 +135,8 @@ export const zhTW = {
     blueOnly: '藍方',
     distance: '距離',
     saved: '已儲存',
+    hideAll: '全部隱藏',
+    showAllPaths: '全部顯示',
   },
 
   // QR 類型

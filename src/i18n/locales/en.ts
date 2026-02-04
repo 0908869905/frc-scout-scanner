@@ -137,6 +137,8 @@ export const en: Translations = {
     blueOnly: 'Blue',
     distance: 'dist',
     saved: 'Saved',
+    hideAll: 'Hide All',
+    showAllPaths: 'Show All',
   },
 
   // QR Types

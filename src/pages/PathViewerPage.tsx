@@ -657,6 +657,15 @@ export function PathViewerPage() {
               ))}
             </div>
 
+            {/* 全部顯示/隱藏 */}
+            <button onClick={() => {
+              const allVisible = paths.every(p => p.visible);
+              setPaths(prev => prev.map(p => ({ ...p, visible: !allVisible })));
+            }}
+              className="text-[10px] text-slate-400 hover:text-slate-200 px-2 py-0.5 rounded hover:bg-slate-700">
+              {paths.every(p => p.visible) ? t.pathViewer.hideAll : t.pathViewer.showAllPaths}
+            </button>
+
             {/* 清除全部 */}
             <button onClick={() => setPaths([])}
               className="text-[10px] text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10">
