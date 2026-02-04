@@ -270,7 +270,8 @@ function queryPathsByTeam(eventCode, teamNumber) {
               alliance: String(row[allianceIdx] || ''),
               autoPath: autoPath,
               matchLevel: ml,
-              matchNumber: mn
+              matchNumber: mn,
+              source: 'scouting'
             });
             seen[key] = true;
           }
@@ -298,8 +299,6 @@ function queryPathsByTeam(eventCode, teamNumber) {
         var pAutoPath = pAutoPathIdx >= 0 ? String(pRow[pAutoPathIdx]) : '';
         if (pAutoPath && pAutoPath !== 'None' && pAutoPath.trim() !== '') {
           var pMn = String(pRow[pNumberIdx] || '');
-          // Path Data 沒有 matchLevel，用 '_' + matchNumber 作為 key
-          // 不會和 Match Data 的 'QM_1'、'P_1' 等衝突
           var pKey = '_' + pMn;
           if (!seen[pKey]) {
             results.push({
@@ -307,9 +306,48 @@ function queryPathsByTeam(eventCode, teamNumber) {
               alliance: pAllianceIdx >= 0 ? String(pRow[pAllianceIdx] || '') : '',
               autoPath: pAutoPath,
               matchLevel: '',
-              matchNumber: pMn
+              matchNumber: pMn,
+              source: 'scouting'
             });
             seen[pKey] = true;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. 從 Pit Scouting 工作表查詢（Pit Collect 路徑）
+  var pitSheet = getSheet(CONFIG.SHEET_PIT);
+  if (pitSheet && pitSheet.getLastRow() > 1) {
+    var pitData = pitSheet.getDataRange().getValues();
+    var pitHeaders = pitData[0];
+
+    var pitTeamIdx = pitHeaders.indexOf('teamNumber');
+    var pitAutoPathIdx = pitHeaders.indexOf('autoPath');
+
+    for (var k = 1; k < pitData.length; k++) {
+      var pitRow = pitData[k];
+      if (String(pitRow[pitTeamIdx]) === String(teamNumber)) {
+        var pitAutoPath = pitAutoPathIdx >= 0 ? String(pitRow[pitAutoPathIdx]) : '';
+        if (pitAutoPath && pitAutoPath !== 'None' && pitAutoPath.trim() !== '') {
+          // Pit autoPath 可能有多條用 ';' 分隔
+          var pitPaths = pitAutoPath.split(';');
+          for (var pi = 0; pi < pitPaths.length; pi++) {
+            var singlePath = pitPaths[pi].trim();
+            if (singlePath && singlePath !== 'None') {
+              var pitKey = 'pit_' + pi;
+              if (!seen[pitKey]) {
+                results.push({
+                  teamNumber: String(teamNumber),
+                  alliance: '',
+                  autoPath: singlePath,
+                  matchLevel: '',
+                  matchNumber: '',
+                  source: 'pit'
+                });
+                seen[pitKey] = true;
+              }
+            }
           }
         }
       }
@@ -352,7 +390,8 @@ function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
             alliance: String(row[allianceIdx] || ''),
             autoPath: autoPath,
             matchLevel: String(row[levelIdx] || matchLevel),
-            matchNumber: String(matchNumber)
+            matchNumber: String(matchNumber),
+            source: 'scouting'
           };
         }
       }
@@ -377,15 +416,14 @@ function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
           String(pRow[pNumberIdx]) === String(matchNumber)) {
         var pTeam = String(pRow[pTeamIdx]);
         var pAutoPath = pAutoPathIdx >= 0 ? String(pRow[pAutoPathIdx]) : '';
-        // Path Data 表沒有 matchLevel，只比對 eventCode + matchNumber
-        // 若 Match Data 已有該隊資料則跳過（Match Data 優先）
         if (pAutoPath && pAutoPath !== 'None' && pAutoPath.trim() !== '' && !results[pTeam]) {
           results[pTeam] = {
             teamNumber: pTeam,
             alliance: pAllianceIdx >= 0 ? String(pRow[pAllianceIdx] || '') : '',
             autoPath: pAutoPath,
             matchLevel: String(matchLevel),
-            matchNumber: String(matchNumber)
+            matchNumber: String(matchNumber),
+            source: 'scouting'
           };
         }
       }
@@ -1095,15 +1133,87 @@ function seedTestData() {
     pathSheet.appendRow(pathRows[p]);
   }
 
+  // --- Pit Scouting 工作表（Pit Collect 資料，含 autoPath）---
+  var pitSheet = getOrCreateSheet(CONFIG.SHEET_PIT, SHEET_HEADERS.PIT);
+
+  var pitRows = [
+    // 6998: 有 2 條 Pit Collect 路徑（分號分隔）
+    buildPitRow({
+      teamNumber:'6998', scouterName:'Alice', chassisType:'Swerve', weight:'52',
+      maxCapacity:'4', intake:'Ground + Source', visionHardware:'Limelight 3',
+      visionSoftware:'PhotonVision', shooting:'Speaker + Amp', turret:'None',
+      startLocation:'Center', preload:'1', autoIntake:'1', autoHang:'0',
+      autoTotal:'5', crossMidfield:'1', terrain:'Chain', stability:'4',
+      climbLevel:'Harmony', climbPosition:'Center', climbTime:'8',
+      photosTaken:'1', notes:'Strong auto, fast cycle',
+      autoPath:'20.0,85.0|25.0,75.0|30.0,65.0|35.0,55.0|40.0,48.0;18.0,80.0|22.0,70.0|28.0,60.0|35.0,50.0|42.0,42.0|48.0,35.0'
+    }, uploadTime, uploadTime),
+
+    // 254: 有 1 條 Pit Collect 路徑
+    buildPitRow({
+      teamNumber:'254', scouterName:'Bob', chassisType:'Swerve', weight:'55',
+      maxCapacity:'5', intake:'Ground', visionHardware:'Limelight 3',
+      visionSoftware:'Custom', shooting:'Speaker', turret:'Full 360',
+      startLocation:'Left', preload:'1', autoIntake:'1', autoHang:'1',
+      autoTotal:'6', crossMidfield:'1', terrain:'Chain + Bump', stability:'5',
+      climbLevel:'Harmony', climbPosition:'Left', climbTime:'5',
+      photosTaken:'1', notes:'Best auto in event',
+      autoPath:'82.0,88.0|78.0,78.0|72.0,68.0|65.0,58.0|58.0,50.0|52.0,42.0|48.0,35.0'
+    }, uploadTime, uploadTime),
+
+    // 1678: 有 1 條 Pit Collect 路徑
+    buildPitRow({
+      teamNumber:'1678', scouterName:'Charlie', chassisType:'Swerve', weight:'50',
+      maxCapacity:'4', intake:'Ground + Source', visionHardware:'PhotonVision Camera',
+      visionSoftware:'PhotonVision', shooting:'Speaker', turret:'None',
+      startLocation:'Right', preload:'1', autoIntake:'1', autoHang:'0',
+      autoTotal:'4', crossMidfield:'1', terrain:'Chain', stability:'4',
+      climbLevel:'Level2', climbPosition:'Right', climbTime:'10',
+      photosTaken:'1', notes:'Consistent scorer',
+      autoPath:'15.0,90.0|18.0,80.0|22.0,70.0|28.0,60.0|35.0,52.0'
+    }, uploadTime, uploadTime),
+
+    // 2056: 無 autoPath（測試空路徑不會被查詢出來）
+    buildPitRow({
+      teamNumber:'2056', scouterName:'Dave', chassisType:'Tank', weight:'48',
+      maxCapacity:'3', intake:'Source Only', visionHardware:'None',
+      visionSoftware:'None', shooting:'Amp', turret:'None',
+      startLocation:'Center', preload:'1', autoIntake:'0', autoHang:'0',
+      autoTotal:'2', crossMidfield:'0', terrain:'Bump', stability:'3',
+      climbLevel:'Level1', climbPosition:'Center', climbTime:'15',
+      photosTaken:'0', notes:'Defense bot',
+      autoPath:'None'
+    }, uploadTime, uploadTime),
+
+    // 3310: 有 3 條 Pit Collect 路徑
+    buildPitRow({
+      teamNumber:'3310', scouterName:'Eve', chassisType:'Swerve', weight:'54',
+      maxCapacity:'4', intake:'Ground', visionHardware:'Limelight 2+',
+      visionSoftware:'Limelight OS', shooting:'Speaker + Amp', turret:'None',
+      startLocation:'Right', preload:'1', autoIntake:'1', autoHang:'1',
+      autoTotal:'5', crossMidfield:'1', terrain:'Chain', stability:'4',
+      climbLevel:'Harmony', climbPosition:'Right', climbTime:'7',
+      photosTaken:'1', notes:'Great all-rounder',
+      autoPath:'85.0,90.0|80.0,80.0|74.0,70.0|68.0,60.0|62.0,52.0;88.0,85.0|82.0,75.0|76.0,65.0|70.0,55.0|65.0,48.0|60.0,42.0;90.0,82.0|84.0,72.0|78.0,62.0|72.0,52.0|66.0,45.0'
+    }, uploadTime, uploadTime),
+  ];
+
+  for (var pt = 0; pt < pitRows.length; pt++) {
+    pitSheet.appendRow(pitRows[pt]);
+  }
+
   console.log('=== Seed Data Complete ===');
   console.log('Match Data rows added: ' + matchRows.length);
   console.log('Path Data rows added: ' + pathRows.length);
+  console.log('Pit Scouting rows added: ' + pitRows.length);
   console.log('');
   console.log('Test queries:');
-  console.log('  By match: eventCode=2026TEST, matchLevel=QM, matchNumber=1 (6 paths)');
-  console.log('  By match: eventCode=2026TEST, matchLevel=PO, matchNumber=1 (2 paths)');
-  console.log('  By team:  eventCode=2026TEST, teamNumber=6998 (5 paths: P1,QM1,QM2,QM3,PO1 + Path QM4)');
-  console.log('  By team:  eventCode=2026TEST, teamNumber=254  (4 paths: QM1,QM2,PO1 + Path QM5)');
+  console.log('  By match: eventCode=2026TEST, matchLevel=QM, matchNumber=1 (6 scouting paths)');
+  console.log('  By match: eventCode=2026TEST, matchLevel=PO, matchNumber=1 (2 scouting paths)');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=6998 → scouting: P1,QM1-3,PO1,Path QM4 + pit: 2 paths');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=254  → scouting: QM1-2,PO1,Path QM5 + pit: 1 path');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=3310 → scouting: QM1 + pit: 3 paths');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=2056 → scouting: QM1 + pit: 0 (autoPath=None)');
 }
 
 /**

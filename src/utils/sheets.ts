@@ -315,7 +315,7 @@ export async function queryMatchPaths(params: {
   matchNumber: string;
 }): Promise<{
   success: boolean;
-  paths: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string }>;
+  paths: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string; source?: string }>;
   message: string;
 }> {
   const settings = loadSettings();
@@ -344,7 +344,7 @@ export async function queryMatchPaths(params: {
 
     let result: {
       success: boolean;
-      paths?: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string }>;
+      paths?: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string; source?: string }>;
       count?: number;
       error?: string;
     };
@@ -390,7 +390,7 @@ export async function queryTeamPaths(params: {
   teamNumber: string;
 }): Promise<{
   success: boolean;
-  paths: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string }>;
+  paths: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string; source?: string }>;
   message: string;
 }> {
   const settings = loadSettings();
@@ -418,7 +418,7 @@ export async function queryTeamPaths(params: {
 
     let result: {
       success: boolean;
-      paths?: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string }>;
+      paths?: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string; source?: string }>;
       count?: number;
       error?: string;
     };

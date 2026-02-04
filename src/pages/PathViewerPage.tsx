@@ -14,6 +14,8 @@ import { loadSettings } from '../utils/storage';
 
 type PathAlliance = 'red' | 'blue' | 'unknown';
 
+type PathSource = 'scouting' | 'pit' | '';
+
 interface PathData {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ interface PathData {
   alliance: PathAlliance;
   visible: boolean;
   flipped: boolean;
+  source: PathSource;
   queryKey?: string; // 用於重複偵測（查詢結果才有）
 }
 
@@ -151,6 +154,7 @@ export function PathViewerPage() {
       alliance: pathAlliance,
       visible: true,
       flipped: false,
+      source: '',
     };
     setPaths(prev => [...prev, newPath]);
     setInputValue('');
@@ -159,27 +163,38 @@ export function PathViewerPage() {
 
   // 將查詢結果疊加到現有路徑（含重複偵測）
   const appendQueryResults = useCallback((
-    queryResults: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string }>,
+    queryResults: Array<{ teamNumber: string; alliance: string; autoPath: string; matchLevel: string; matchNumber: string; source?: string }>,
   ) => {
     let redCount = 0;
     let blueCount = 0;
+    let pitCount = 0;
 
     const newPaths: PathData[] = queryResults.map((p) => {
+      const isPit = p.source === 'pit';
       const isRed = p.alliance.startsWith('R');
       const isBlue = p.alliance.startsWith('B');
       const alliance: PathAlliance = isRed ? 'red' : isBlue ? 'blue' : 'unknown';
       let color: string;
-      if (isRed) { color = RED_COLORS[redCount % RED_COLORS.length]; redCount++; }
+      if (isPit) { color = PATH_COLORS[(pitCount++) % PATH_COLORS.length]; }
+      else if (isRed) { color = RED_COLORS[redCount % RED_COLORS.length]; redCount++; }
       else if (isBlue) { color = BLUE_COLORS[blueCount % BLUE_COLORS.length]; blueCount++; }
       else { color = PATH_COLORS[(redCount + blueCount) % PATH_COLORS.length]; }
 
-      const levelCode = MATCH_LEVEL_CODE[p.matchLevel] || p.matchLevel || '';
-      const name = `${p.teamNumber} ${levelCode}${p.matchNumber}`.trim();
-      const queryKey = `${p.teamNumber}_${p.matchLevel}_${p.matchNumber}`;
+      const source: PathSource = isPit ? 'pit' : 'scouting';
+      let name: string;
+      let queryKey: string;
+      if (isPit) {
+        name = `${p.teamNumber} Pit`;
+        queryKey = `${p.teamNumber}_pit_${pitCount}`;
+      } else {
+        const levelCode = MATCH_LEVEL_CODE[p.matchLevel] || p.matchLevel || '';
+        name = `${p.teamNumber} ${levelCode}${p.matchNumber}`.trim();
+        queryKey = `${p.teamNumber}_${p.matchLevel}_${p.matchNumber}`;
+      }
 
       return {
-        id: Date.now().toString() + '_' + p.teamNumber + '_' + p.matchNumber,
-        name, coords: p.autoPath, color, alliance, visible: true, flipped: false, queryKey,
+        id: Date.now().toString() + '_' + p.teamNumber + '_' + (isPit ? 'pit' + pitCount : p.matchNumber),
+        name, coords: p.autoPath, color, alliance, visible: true, flipped: false, source, queryKey,
       };
     });
 
@@ -671,6 +686,13 @@ export function PathViewerPage() {
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
                       path.alliance === 'red' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
                     }`}>{path.alliance === 'red' ? 'R' : 'B'}</span>
+                  )}
+
+                  {/* 來源標籤 */}
+                  {path.source && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                      path.source === 'pit' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+                    }`}>{path.source === 'pit' ? 'Pit' : 'SP'}</span>
                   )}
 
                   {/* 路徑資訊 */}
