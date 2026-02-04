@@ -107,9 +107,12 @@ export const zhTW = {
   // 路徑查詢
   pathQuery: {
     title: '從後端查詢',
+    queryByMatch: '按場次',
+    queryByTeam: '按隊伍',
     eventCode: '賽事代碼',
     matchLevel: '比賽等級',
     matchNumber: '場次編號',
+    teamNumber: '隊伍編號',
     query: '查詢',
     querying: '查詢中...',
     resultCount: '找到 {count} 條路徑',
@@ -120,6 +123,18 @@ export const zhTW = {
     playoff: '季後賽',
     other: '其他',
     manualAdd: '手動新增路徑',
+  },
+
+  // 路徑檢視器
+  pathViewer: {
+    pathList: '路徑列表',
+    clearAll: '清除全部',
+    export: '匯出圖片',
+    showAll: '全部',
+    redOnly: '紅方',
+    blueOnly: '藍方',
+    distance: '距離',
+    saved: '已儲存',
   },
 
   // QR 類型

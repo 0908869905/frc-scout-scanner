@@ -46,6 +46,8 @@
 | E005 | TypeScript | ScanHistoryItem.qrType vs type 混淆 | 2026-01-26 | 已解決 |
 | E006 | Camera | OverconstrainedError 相機參數不支援 | 2026-01-26 | 已解決 |
 | E007 | Schema | Schema 欄位數不匹配導致「資料不完整」 | 2026-01-28 | 已解決 |
+| E008 | Schema | Pit Collect 雙版本欄位數不匹配導致「資料不完整」 | 2026-02-02 | 已解決 |
+| E009 | React | Stale closure 導致連續掃描多張 QR 時合併失敗 | 2026-02-03 | 已解決 |
 
 ---
 
@@ -300,6 +302,93 @@ videoConstraints: {
 
 ---
 
+### [E008] Pit Collect 雙版本欄位數不匹配導致「資料不完整」
+
+**日期**：2026-02-02
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+資料不完整
+```
+
+**根本原因**：
+- Pit Collect app 存在兩個版本：v1（23 欄位，含 stability）和 v2（22 欄位，移除 stability）
+- Scanner 在 2026-02-01 同步上游變更後只支援 v2（22 欄位）
+- 實際比賽現場仍有 v1 QR Code，23 欄位無法匹配任何已知 schema
+- `detectQRType()` 返回 `unknown`，導致顯示「資料不完整」
+
+**解決方案**：
+```typescript
+// 1. schema.ts 新增 legacy schema
+export const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
+  // 23 欄位，含 stability（位於 terrain 和 climbLevel 之間）
+];
+
+// 2. detectQRType() 同時匹配兩個長度
+if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';        // 22
+if (length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length) return 'pit-external'; // 23
+
+// 3. decodeQR() 根據實際欄位數選擇 schema
+case 'pit-external':
+  schema = values.length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length
+    ? TSV_SCHEMA_PIT_EXTERNAL_LEGACY
+    : TSV_SCHEMA_PIT_EXTERNAL;
+  break;
+```
+
+**預防措施**：
+- 當外部應用有多個版本共存時，scanner 必須支援所有已知版本
+- 同步上游 schema 變更時，保留舊版本作為 legacy 而非直接替換
+- 使用 `SCHEMA_LENGTHS` 常數集中管理所有已知的欄位數
+
+**相關檔案**：
+- src/constants/schema.ts
+- src/utils/decoder.ts
+
+---
+
+### [E009] Stale Closure 導致連續掃描多張 QR 時合併失敗
+
+**日期**：2026-02-03
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+連續掃描多張 pit-path QR 時，第二張以後的路徑未合併到 pit-external 記錄
+```
+
+**根本原因**：
+- `onScanSuccess` 回調在 useEffect 初始化時被創建，閉包中捕獲了當時的 `scanHistory` state
+- React useState 更新 state 後，已創建的回調閉包不會自動獲取新值
+- 掃描第二張 QR 時，回調中的 `scanHistory` 仍是掃描第一張之前的舊值
+- 導致 `.find()` 找不到剛掃描進來的 pit-external 記錄
+
+**解決方案**：
+```typescript
+// 使用 useRef 同步最新 state
+const scanHistoryRef = useRef(scanHistory);
+scanHistoryRef.current = scanHistory; // 每次 render 同步
+
+const handleScan = useCallback((result) => {
+  // 回調中使用 ref 而非直接引用 state
+  const currentHistory = scanHistoryRef.current;
+  const pitRecord = currentHistory.find(item => ...);
+}, []); // 空依賴，不重新創建
+```
+
+**預防措施**：
+- 在 html5-qrcode 掃描回調中，任何需要存取最新 state 的地方都用 `useRef` 同步
+- 不能將 state 放入 useEffect/useCallback 的 dependency array（會導致相機重新初始化）
+- 這是 React 中 "escape hatch" 的標準用法：當需要最新值但不能觸發重新執行時
+
+**相關檔案**：
+- src/pages/ScanPage.tsx
+
+---
+
 ## 常見錯誤模式
 
 ### 1. TypeScript 類型錯誤
@@ -416,10 +505,10 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 7 |
-| 已解決 | 7 |
+| 總錯誤數 | 9 |
+| 已解決 | 9 |
 | 進行中 | 0 |
-| 高嚴重度 | 4 |
+| 高嚴重度 | 6 |
 | 中嚴重度 | 3 |
 | 低嚴重度 | 0 |
 
@@ -434,4 +523,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-01-28*
+*最後更新：2026-02-03*

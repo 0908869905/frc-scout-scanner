@@ -137,15 +137,20 @@ function doGet(e) {
     return handleQueryPaths(e.parameter);
   }
 
+  if (action === 'queryTeamPaths') {
+    return handleQueryTeamPaths(e.parameter);
+  }
+
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.1.0',
+    version: '1.2.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
       GET: 'API status check',
-      'GET ?action=queryPaths': 'Query path data by match'
+      'GET ?action=queryPaths': 'Query path data by match',
+      'GET ?action=queryTeamPaths': 'Query path data by team'
     },
     schema: {
       match: TSV_SCHEMA_MATCH.length,
@@ -195,6 +200,126 @@ function handleQueryPaths(params) {
 }
 
 /**
+ * 處理查詢隊伍路徑 API
+ * GET ?action=queryTeamPaths&eventCode=XXX&teamNumber=ZZZ
+ */
+function handleQueryTeamPaths(params) {
+  try {
+    var eventCode = params.eventCode;
+    var teamNumber = params.teamNumber;
+
+    if (!eventCode || !teamNumber) {
+      return createJsonResponse({
+        success: false,
+        error: 'Missing required parameters: eventCode, teamNumber',
+        paths: [],
+        count: 0
+      });
+    }
+
+    var paths = queryPathsByTeam(eventCode, teamNumber);
+
+    return createJsonResponse({
+      success: true,
+      paths: paths,
+      count: paths.length,
+      query: { eventCode: eventCode, teamNumber: teamNumber }
+    });
+  } catch (error) {
+    return createJsonResponse({
+      success: false,
+      error: error.message,
+      paths: [],
+      count: 0
+    });
+  }
+}
+
+/**
+ * 從 Match Data 和 Path Data 工作表查詢指定隊伍的所有路徑資料
+ */
+function queryPathsByTeam(eventCode, teamNumber) {
+  var results = [];
+  var seen = {};  // key: matchLevel_matchNumber，避免重複
+
+  // 1. 從 Match Data 工作表查詢（有 matchLevel）
+  var matchSheet = getSheet(CONFIG.SHEET_MATCH);
+  if (matchSheet && matchSheet.getLastRow() > 1) {
+    var matchData = matchSheet.getDataRange().getValues();
+    var matchHeaders = matchData[0];
+
+    var eventIdx = matchHeaders.indexOf('eventCode');
+    var levelIdx = matchHeaders.indexOf('matchLevel');
+    var numberIdx = matchHeaders.indexOf('matchNumber');
+    var teamIdx = matchHeaders.indexOf('teamNumber');
+    var allianceIdx = matchHeaders.indexOf('alliance');
+    var autoPathIdx = matchHeaders.indexOf('autoPath');
+
+    for (var i = 1; i < matchData.length; i++) {
+      var row = matchData[i];
+      if (String(row[eventIdx]) === String(eventCode) &&
+          String(row[teamIdx]) === String(teamNumber)) {
+        var autoPath = autoPathIdx >= 0 ? String(row[autoPathIdx]) : '';
+        if (autoPath && autoPath !== 'None' && autoPath.trim() !== '') {
+          var ml = String(row[levelIdx] || '');
+          var mn = String(row[numberIdx] || '');
+          var key = ml + '_' + mn;
+          if (!seen[key]) {
+            results.push({
+              teamNumber: String(teamNumber),
+              alliance: String(row[allianceIdx] || ''),
+              autoPath: autoPath,
+              matchLevel: ml,
+              matchNumber: mn
+            });
+            seen[key] = true;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. 從 Path Data 工作表查詢（備用，無 matchLevel）
+  var pathSheet = getSheet(CONFIG.SHEET_PATH);
+  if (pathSheet && pathSheet.getLastRow() > 1) {
+    var pathData = pathSheet.getDataRange().getValues();
+    var pathHeaders = pathData[0];
+
+    var pEventIdx = pathHeaders.indexOf('eventCode');
+    var pNumberIdx = pathHeaders.indexOf('matchNumber');
+    var pTeamIdx = pathHeaders.indexOf('teamNumber');
+    var pAllianceIdx = pathHeaders.indexOf('alliance');
+    var pAutoPathIdx = pathHeaders.indexOf('autoPath');
+
+    for (var j = 1; j < pathData.length; j++) {
+      var pRow = pathData[j];
+      if (String(pRow[pEventIdx]) === String(eventCode) &&
+          String(pRow[pTeamIdx]) === String(teamNumber)) {
+        var pAutoPath = pAutoPathIdx >= 0 ? String(pRow[pAutoPathIdx]) : '';
+        if (pAutoPath && pAutoPath !== 'None' && pAutoPath.trim() !== '') {
+          var pMn = String(pRow[pNumberIdx] || '');
+          // Path Data 沒有 matchLevel，用 '_' + matchNumber 作為 key
+          // 不會和 Match Data 的 'QM_1'、'P_1' 等衝突
+          var pKey = '_' + pMn;
+          if (!seen[pKey]) {
+            results.push({
+              teamNumber: String(teamNumber),
+              alliance: pAllianceIdx >= 0 ? String(pRow[pAllianceIdx] || '') : '',
+              autoPath: pAutoPath,
+              matchLevel: '',
+              matchNumber: pMn
+            });
+            seen[pKey] = true;
+          }
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
  * 從 Match Data 和 Path Data 工作表查詢路徑資料
  */
 function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
@@ -225,7 +350,9 @@ function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
           results[team] = {
             teamNumber: team,
             alliance: String(row[allianceIdx] || ''),
-            autoPath: autoPath
+            autoPath: autoPath,
+            matchLevel: String(row[levelIdx] || matchLevel),
+            matchNumber: String(matchNumber)
           };
         }
       }
@@ -256,7 +383,9 @@ function queryPathsByMatch(eventCode, matchLevel, matchNumber) {
           results[pTeam] = {
             teamNumber: pTeam,
             alliance: pAllianceIdx >= 0 ? String(pRow[pAllianceIdx] || '') : '',
-            autoPath: pAutoPath
+            autoPath: pAutoPath,
+            matchLevel: String(matchLevel),
+            matchNumber: String(matchNumber)
           };
         }
       }
@@ -832,6 +961,149 @@ function testQueryPaths() {
   var result = queryPathsByMatch('2026TEST', 'QM', '1');
   console.log('Query result:', JSON.stringify(result));
   console.log('Found', result.length, 'paths');
+}
+
+/**
+ * 填入測試資料（用於測試查詢功能）
+ * 在 Apps Script 編輯器中選擇此函數，點「執行」即可
+ *
+ * 會在 Match Data 和 Path Data 工作表各加入多筆模擬路徑資料
+ * 賽事代碼：2026TEST
+ * 涵蓋：練習賽(P)、資格賽(QM)、季後賽(PO)
+ * 隊伍：6998, 254, 1678, 2056, 3310, 118
+ * 紅藍方：R1-R3, B1-B3
+ */
+function seedTestData() {
+  // --- Match Data 工作表 ---
+  var matchSheet = getOrCreateSheet(CONFIG.SHEET_MATCH, SHEET_HEADERS.MATCH);
+  var uploadTime = new Date().toISOString();
+
+  var matchRows = [
+    buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R1', teamNumber:'6998',
+      autoClimbStatus:'Level1', autoClimbTime:'4', autoClimbPosition:'Center',
+      bumpCount:'2', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level2', teleClimbTime:'7', teleClimbPosition:'Left',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Fast auto' },
+      '15.2,75.3|20.1,65.0|28.5,55.2|35.0,48.0|40.0,42.5', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Bob', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R2', teamNumber:'254',
+      autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
+      bumpCount:'3', trenchCount:'2', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      teleClimbStatus:'Level3', teleClimbTime:'12', teleClimbPosition:'Right',
+      robotDied:'0', almostTipped:'1', ridingOnBall:'0', comments:'Strong climb' },
+      '10.0,80.0|18.0,70.0|25.0,60.0|30.0,52.0|38.0,45.0|45.0,40.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Charlie', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R3', teamNumber:'1678',
+      autoClimbStatus:'Level1', autoClimbTime:'3', autoClimbPosition:'LeftSide',
+      bumpCount:'1', trenchCount:'0', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level2', teleClimbTime:'6', teleClimbPosition:'Center',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Consistent auto' },
+      '12.0,78.0|15.5,70.0|18.0,62.0|22.0,55.0|28.0,50.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Dave', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B1', teamNumber:'2056',
+      autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
+      bumpCount:'0', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level1', teleClimbTime:'5', teleClimbPosition:'RightSide',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Smooth driving' },
+      '85.0,75.0|80.0,65.0|72.0,55.0|65.0,48.0|60.0,42.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Eve', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B2', teamNumber:'3310',
+      autoClimbStatus:'Level1', autoClimbTime:'5', autoClimbPosition:'Right',
+      bumpCount:'1', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level2', teleClimbTime:'9', teleClimbPosition:'Left',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Great defense' },
+      '88.0,80.0|82.0,72.0|75.0,63.0|70.0,55.0|63.0,50.0|58.0,45.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Frank', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B3', teamNumber:'118',
+      autoClimbStatus:'Level2', autoClimbTime:'7', autoClimbPosition:'Center',
+      bumpCount:'2', trenchCount:'2', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      teleClimbStatus:'Level3', teleClimbTime:'15', teleClimbPosition:'Center',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Aggressive play' },
+      '90.0,78.0|85.0,68.0|78.0,58.0|72.0,50.0|65.0,45.0', uploadTime, uploadTime),
+
+    // QM2
+    buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'2', alliance:'B1', teamNumber:'6998',
+      autoClimbStatus:'Level2', autoClimbTime:'5', autoClimbPosition:'Center',
+      bumpCount:'1', trenchCount:'2', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level3', teleClimbTime:'10', teleClimbPosition:'Center',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Best match' },
+      '88.0,72.0|82.0,62.0|75.0,53.0|68.0,45.0|60.0,40.0|55.0,35.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Bob', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'2', alliance:'B2', teamNumber:'254',
+      autoClimbStatus:'Level1', autoClimbTime:'4', autoClimbPosition:'Left',
+      bumpCount:'2', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level2', teleClimbTime:'8', teleClimbPosition:'LeftSide',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Good auto' },
+      '90.0,80.0|84.0,70.0|78.0,62.0|70.0,55.0|62.0,48.0', uploadTime, uploadTime),
+
+    // QM3
+    buildMatchRow({ scouterName:'Charlie', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'3', alliance:'R2', teamNumber:'6998',
+      autoClimbStatus:'Level1', autoClimbTime:'3', autoClimbPosition:'Right',
+      bumpCount:'3', trenchCount:'1', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      teleClimbStatus:'Level2', teleClimbTime:'9', teleClimbPosition:'Right',
+      robotDied:'0', almostTipped:'1', ridingOnBall:'0', comments:'Tough defense' },
+      '18.0,70.0|22.0,60.0|30.0,50.0|35.0,42.0|42.0,35.0', uploadTime, uploadTime),
+
+    // P1: 練習賽
+    buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'P', matchNumber:'1', alliance:'R1', teamNumber:'6998',
+      autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
+      bumpCount:'0', trenchCount:'0', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'None', teleClimbTime:'0', teleClimbPosition:'Center',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Practice run' },
+      '14.0,82.0|18.0,72.0|22.0,62.0|28.0,52.0', uploadTime, uploadTime),
+
+    // PO1: 季後賽
+    buildMatchRow({ scouterName:'Dave', eventCode:'2026TEST', matchLevel:'PO', matchNumber:'1', alliance:'R1', teamNumber:'6998',
+      autoClimbStatus:'Level2', autoClimbTime:'4', autoClimbPosition:'Center',
+      bumpCount:'2', trenchCount:'2', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level3', teleClimbTime:'8', teleClimbPosition:'Center',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Playoff run' },
+      '16.0,76.0|22.0,66.0|30.0,56.0|38.0,46.0|45.0,38.0|50.0,32.0', uploadTime, uploadTime),
+
+    buildMatchRow({ scouterName:'Eve', eventCode:'2026TEST', matchLevel:'PO', matchNumber:'1', alliance:'B1', teamNumber:'254',
+      autoClimbStatus:'Level2', autoClimbTime:'5', autoClimbPosition:'Left',
+      bumpCount:'1', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      teleClimbStatus:'Level3', teleClimbTime:'10', teleClimbPosition:'Left',
+      robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Finals' },
+      '86.0,76.0|80.0,66.0|72.0,56.0|65.0,48.0|58.0,42.0|52.0,36.0', uploadTime, uploadTime),
+  ];
+
+  for (var m = 0; m < matchRows.length; m++) {
+    matchSheet.appendRow(matchRows[m]);
+  }
+
+  // --- Path Data 工作表（額外路徑，不在 Match Data 裡的）---
+  var pathSheet = getOrCreateSheet(CONFIG.SHEET_PATH, SHEET_HEADERS.PATH);
+
+  var pathRows = [
+    // QM4: 只有路徑資料（沒有 Match Data）
+    buildPathRow({ eventCode:'2026TEST', matchNumber:'4', teamNumber:'6998', alliance:'R1',
+      autoPath:'12.0,80.0|16.0,70.0|22.0,60.0|28.0,50.0|35.0,42.0|40.0,36.0' }, uploadTime, uploadTime),
+
+    buildPathRow({ eventCode:'2026TEST', matchNumber:'4', teamNumber:'1678', alliance:'R3',
+      autoPath:'10.0,85.0|14.0,75.0|20.0,65.0|26.0,55.0|32.0,48.0' }, uploadTime, uploadTime),
+
+    buildPathRow({ eventCode:'2026TEST', matchNumber:'4', teamNumber:'118', alliance:'B2',
+      autoPath:'92.0,82.0|86.0,72.0|80.0,62.0|74.0,52.0|68.0,45.0|62.0,40.0' }, uploadTime, uploadTime),
+
+    // QM5: 只有路徑
+    buildPathRow({ eventCode:'2026TEST', matchNumber:'5', teamNumber:'254', alliance:'R1',
+      autoPath:'8.0,78.0|14.0,68.0|20.0,58.0|28.0,48.0|36.0,40.0|42.0,35.0|48.0,30.0' }, uploadTime, uploadTime),
+  ];
+
+  for (var p = 0; p < pathRows.length; p++) {
+    pathSheet.appendRow(pathRows[p]);
+  }
+
+  console.log('=== Seed Data Complete ===');
+  console.log('Match Data rows added: ' + matchRows.length);
+  console.log('Path Data rows added: ' + pathRows.length);
+  console.log('');
+  console.log('Test queries:');
+  console.log('  By match: eventCode=2026TEST, matchLevel=QM, matchNumber=1 (6 paths)');
+  console.log('  By match: eventCode=2026TEST, matchLevel=PO, matchNumber=1 (2 paths)');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=6998 (5 paths: P1,QM1,QM2,QM3,PO1 + Path QM4)');
+  console.log('  By team:  eventCode=2026TEST, teamNumber=254  (4 paths: QM1,QM2,PO1 + Path QM5)');
 }
 
 /**

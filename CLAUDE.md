@@ -22,10 +22,19 @@ Scouting App → QR Code (LZ-String Base64 壓縮) → Scanner App → 解碼 �
 
 ### 資料格式
 
-- **Match Data QR**：20 個欄位，包含比賽數據 (v1.3.0)
-- **Auto Path QR**：4 個欄位，包含自動路徑
+- **Match Data QR**：21 個欄位，包含比賽數據 (v1.4.0)
+- **Auto Path QR**：5 個欄位，包含自動路徑 + 聯盟 (v1.4.0)
+- **Pit Path QR**：4 個欄位，Pit Collect 路徑 QR，掃描後自動合併 autoPath 到同隊 pit-external（多條用 `;` 分隔）
 - **Pit Scouting QR**：13 個欄位，包含隊伍資訊
-- **Pit External QR**：22 個欄位，FRC6998 Pit Collect 格式
+- **Pit External QR**：22 個欄位 (v2) 或 23 個欄位 (v1 legacy, 含 stability)，FRC6998 Pit Collect 格式，decoder 自動偵測版本
+
+### Google Apps Script API
+
+doGet() 支援 `action` 參數路由：
+- **無 action**：回傳 API 狀態 `{ success: true, message: 'API is running' }`
+- **`?action=queryPaths&eventCode=...&matchLevel=...&matchNumber=...`**：查詢指定比賽的路徑資料（從 Match Data 和 Path Data 工作表），回傳 `{ success, paths: [...], query: {...} }`
+
+doPost() 接收資料上傳（match/path/pit/pit-external/batch）
 
 ### 關鍵依賴
 
@@ -61,7 +70,7 @@ frc-scout-scanner/
 │   │       └── en.ts      # English
 │   ├── utils/
 │   │   ├── decoder.ts     # LZ-String 解碼
-│   │   ├── sheets.ts      # Google Sheets API
+│   │   ├── sheets.ts      # Google Sheets API（上傳 + queryMatchPaths 查詢）
 │   │   ├── storage.ts     # localStorage 操作
 │   │   ├── exporter.ts    # CSV/JSON 匯出
 │   │   └── validator.ts   # 資料驗證
@@ -88,9 +97,9 @@ frc-scout-scanner/
 │       ├── ScanPage.tsx
 │       ├── HistoryPage.tsx
 │       ├── SettingsPage.tsx
-│       └── PathViewerPage.tsx  # 路徑可視化工具
+│       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢）
 ├── google-apps-script/
-│   ├── Code.gs            # Google Apps Script 完整程式碼
+│   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳）
 │   └── README.md          # 部署指南
 ├── CLAUDE.md              # Claude Code 指令（此檔案）
 ├── PROGRESS.md            # 開發進度追蹤
@@ -155,7 +164,7 @@ try {
 
 ## TSV Schema 定義
 
-### Match Data (20 欄位) - v1.3.0
+### Match Data (21 欄位) - v1.4.0
 
 ```typescript
 const TSV_SCHEMA_MATCH = [
@@ -163,8 +172,8 @@ const TSV_SCHEMA_MATCH = [
   'scouterName', 'eventCode', 'matchLevel', 'matchNumber', 'alliance', 'teamNumber',
   // Auto (3)
   'autoClimbStatus', 'autoClimbTime', 'autoClimbPosition',
-  // Teleop - Bump & Fuel (2)
-  'bumpTrenchCount', 'fuelDroppedOnBumpCount',
+  // Teleop - Bump & Trench & Fuel (3)
+  'bumpCount', 'trenchCount', 'fuelDroppedOnBumpCount',
   // Teleop - Penalty (2)
   'minorPenalty', 'majorPenalty',
   // Teleop - Climb (3)
@@ -174,13 +183,23 @@ const TSV_SCHEMA_MATCH = [
 ];
 ```
 
-### Path Data (4 欄位)
+### Path Data (5 欄位) - v1.4.0
 
 ```typescript
 const TSV_SCHEMA_PATH = [
+  'eventCode', 'matchNumber', 'teamNumber', 'alliance', 'autoPath'
+];
+```
+
+### Pit Path Data (4 欄位) - Pit Collect 路徑 QR
+
+```typescript
+const TSV_SCHEMA_PIT_PATH = [
   'eventCode', 'matchNumber', 'teamNumber', 'autoPath'
 ];
 ```
+
+> **注意**：pit-path 和 path 的差異：pit-path 沒有 alliance 欄位（4 欄位 vs 5 欄位），且合併目標是 pit-external 而非 match。多條路徑用 `;` 分隔合併到 pit-external 的 autoPath 欄位。
 
 ### Pit Scouting (13 欄位)
 
@@ -193,7 +212,7 @@ const TSV_SCHEMA_PIT = [
 ];
 ```
 
-### Pit External (22 欄位) - FRC6998 Pit Collect
+### Pit External v2 (22 欄位) - FRC6998 Pit Collect (目前版本)
 
 ```typescript
 const TSV_SCHEMA_PIT_EXTERNAL = [
@@ -204,6 +223,20 @@ const TSV_SCHEMA_PIT_EXTERNAL = [
   'climbTime', 'photosTaken', 'notes'
 ];
 ```
+
+### Pit External v1 Legacy (23 欄位) - FRC6998 Pit Collect (舊版，含 stability)
+
+```typescript
+const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
+  'teamNumber', 'scouterName', 'chassisType', 'weight', 'maxCapacity',
+  'intake', 'visionHardware', 'visionSoftware', 'shooting', 'turret',
+  'startLocation', 'preload', 'autoIntake', 'autoHang', 'autoTotal',
+  'crossMidfield', 'terrain', 'stability', 'climbLevel', 'climbPosition',
+  'climbTime', 'photosTaken', 'notes'
+];
+```
+
+> **注意**：decoder 會根據欄位數自動選擇 v1 或 v2 schema，兩者都映射為 `pit-external` 類型。
 
 ---
 
@@ -283,4 +316,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-02-01*
+*最後更新：2026-02-04*

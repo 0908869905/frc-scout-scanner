@@ -109,9 +109,12 @@ export const en: Translations = {
   // Path Query
   pathQuery: {
     title: 'Query from Backend',
+    queryByMatch: 'By Match',
+    queryByTeam: 'By Team',
     eventCode: 'Event Code',
     matchLevel: 'Match Level',
     matchNumber: 'Match Number',
+    teamNumber: 'Team Number',
     query: 'Query',
     querying: 'Querying...',
     resultCount: 'Found {count} path(s)',
@@ -122,6 +125,18 @@ export const en: Translations = {
     playoff: 'Playoff',
     other: 'Other',
     manualAdd: 'Add Path Manually',
+  },
+
+  // Path Viewer
+  pathViewer: {
+    pathList: 'Path List',
+    clearAll: 'Clear All',
+    export: 'Export',
+    showAll: 'All',
+    redOnly: 'Red',
+    blueOnly: 'Blue',
+    distance: 'dist',
+    saved: 'Saved',
   },
 
   // QR Types
