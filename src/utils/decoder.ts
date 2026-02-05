@@ -123,13 +123,15 @@ export function parsePath(pathStr: string): PathPoint[] {
 
 /**
  * 产生 Match Key 用于配对 Match 和 Path QR
+ * 包含 matchLevel 以區分 Quals/Playoff/Finals 的相同場次號
  */
 export function getMatchKey(data: {
   eventCode?: string;
+  matchLevel?: string;
   matchNumber?: string | number;
   teamNumber?: string;
 }): string {
-  return `${data.eventCode || ''}_${data.matchNumber || ''}_${data.teamNumber || ''}`;
+  return `${data.eventCode || ''}_${data.matchLevel || ''}_${data.matchNumber || ''}_${data.teamNumber || ''}`;
 }
 
 /**
