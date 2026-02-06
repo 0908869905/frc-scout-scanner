@@ -32,9 +32,35 @@ Scouting App → QR Code (LZ-String Base64 壓縮) → Scanner App → 解碼 �
 
 doGet() 支援 `action` 參數路由：
 - **無 action**：回傳 API 狀態 `{ success: true, message: 'API is running' }`
-- **`?action=queryPaths&eventCode=...&matchLevel=...&matchNumber=...`**：查詢指定比賽的路徑資料（從 Match Data 和 Path Data 工作表），回傳 `{ success, paths: [...], query: {...} }`
+- **`?action=queryPaths&eventCode=...&matchLevel=...&matchNumber=...`**：查詢指定比賽/隊伍的路徑資料（從 Match Data、Path Data、Pit Scouting 工作表），回傳 `{ success, paths: [...], query: {...} }`，每條路徑含 `source` 欄位（"path"/"match"/"pit"）標示來源
+- **`?action=tbaStatus`**：回傳 TBA 同步狀態（API key、trigger、各工作表行數）
+- **`?action=tbaSync`**：透過 HTTP GET 觸發 TBA 同步
+
+輔助函數：
+- **`seedTestData()`**：在 Apps Script 編輯器中手動執行，寫入測試資料（12 筆 Match + 4 筆 Path + 5 筆 Pit）
 
 doPost() 接收資料上傳（match/path/pit/pit-external/batch）
+
+### TBA (The Blue Alliance) 同步
+
+自動從 TBA API v3 抓取賽事資料同步到 Google Sheets，使用 ETag 快取避免不必要的更新。
+
+**7 個同步工作表**：TBA Teams / TBA Matches / TBA Score Breakdown / TBA Rankings / TBA OPRs / TBA Alliances / TBA Awards
+
+**設定步驟**：
+1. `setTBAApiKey('your_key')` — 儲存 API key
+2. `setupTBAConfig()` — 測試連線 + 建立工作表
+3. `manualSyncTBA()` — 首次同步
+4. `setupTBATrigger()` — 啟動每 5 分鐘自動同步
+5. `removeTBATrigger()` — 停止自動同步
+6. `forceSyncTBA()` — 清除 ETag 強制重新同步
+
+**技術細節**：
+- ETag 存儲在 `PropertiesService.getScriptProperties()`
+- Matches + Score Breakdown 共用一次 API call
+- Score Breakdown headers 動態產生（依遊戲規則而異）
+- 寫入策略：clear-and-replace（清除後批次寫入）
+- 時間守衛：追蹤執行時間，4分40秒前停止避免超時
 
 ### 關鍵依賴
 
@@ -97,9 +123,9 @@ frc-scout-scanner/
 │       ├── ScanPage.tsx
 │       ├── HistoryPage.tsx
 │       ├── SettingsPage.tsx
-│       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢）
+│       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢、多路徑同時播放、來源標籤 SP/Pit、全部顯示/隱藏）
 ├── google-apps-script/
-│   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳）
+│   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳 + TBA 同步）
 │   └── README.md          # 部署指南
 ├── CLAUDE.md              # Claude Code 指令（此檔案）
 ├── PROGRESS.md            # 開發進度追蹤
@@ -316,4 +342,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-02-04*
+*最後更新：2026-02-05*

@@ -8,7 +8,95 @@
 
 **階段**：已部署上線 (Vercel)
 **完成度**：99%
-**最後更新**：2026-02-04
+**最後更新**：2026-02-05 (matchKey 重複掃描修復)
+
+---
+
+## Session: 2026-02-05 (matchKey 重複掃描修復)
+
+### 完成項目
+- [x] 修復 `getMatchKey` 函數，加入 `matchLevel` 參數防止不同比賽等級的相同場次被誤判為重複
+
+### 修改檔案（1 個）
+- `src/utils/decoder.ts` - 修改 `getMatchKey` 函數：舊 key `eventCode_matchNumber_teamNumber` → 新 key `eventCode_matchLevel_matchNumber_teamNumber`
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復掃描 QR code 時，不同比賽等級（Quals/Playoff）的相同場次號會被誤判為重複的問題
+2. **進度？** 已完成，commit edb7d48 已 push 到 main
+3. **下一步？** 重新部署到 Vercel（`vercel --prod`），實際測試 Quals/Playoff 相同場次號不再被誤判為重複
+4. **阻礙？** 無
+5. **檔案？** `src/utils/decoder.ts`（getMatchKey 函數）
+
+---
+
+## Session: 2026-02-04 (TBA 自動同步功能 - Google Apps Script)
+
+### 完成項目
+- [x] 新增 7 個 TBA 同步函式：syncTBATeams, syncTBAMatches, syncTBAScoreBreakdown, syncTBARankings, syncTBAOPRs, syncTBAAlliances, syncTBAAwards
+- [x] ETag 快取機制：304 not_modified 跳過寫入，200 更新資料 + 儲存新 ETag
+- [x] Matches + Score Breakdown 共用一次 API call（/matches endpoint 已含 score_breakdown）
+- [x] Score Breakdown 動態 headers：依遊戲規則自動產生欄位（非硬編碼）
+- [x] clear-and-replace 寫入策略：每次同步先清空再寫入，確保資料一致性
+- [x] syncAllTBA 協調器：含時間守衛（4分40秒 / 280秒）防止超過 Apps Script 6 分鐘限制
+- [x] 管理函式：setTBAApiKey, setupTBAConfig, setupTBATrigger, removeTBATrigger, manualSyncTBA, forceSyncTBA, clearTBAETags
+- [x] doGet 擴展：?action=tbaStatus（查詢同步狀態）、?action=tbaSync（觸發手動同步）
+- [x] authorizeTBA 授權輔助函式：觸發 UrlFetchApp + ScriptApp 授權流程
+- [x] 修復 error 回傳缺少 rows 屬性問題（加入 rows: 0）
+- [x] 修復 syncAllTBA log 未印出錯誤原因（加入 logResult 輔助函式）
+- [x] 解決 UrlFetchApp.fetch 權限問題（appsscript.json 加入 script.external_request scope）
+- [x] 解決 ScriptApp 權限問題（appsscript.json 加入 script.scriptapp scope）
+- [x] 解決 ETag 快取導致首次 manualSyncTBA 全部 not_modified（用 forceSyncTBA 清除快取）
+- [x] 驗證成功：2025mslr 賽事 - 37 teams, 77 matches, 154 score breakdowns, 37 rankings, 37 OPRs, 8 alliances, 25 awards，總耗時 6.3 秒
+- [x] 更新 google-apps-script/README.md：新增 TBA 設定說明書（6 步驟指南 + FAQ）
+- [x] 更新 CLAUDE.md：新增 TBA 相關文件（doGet actions, 工作表, 設定步驟）
+
+### 修改檔案（3 個）
+- `google-apps-script/Code.gs` - 新增約 700 行 TBA 同步功能（7 sync 函式、ETag 快取、syncAllTBA 協調器、管理函式、doGet 擴展、authorizeTBA）
+- `google-apps-script/README.md` - 新增 TBA 設定說明書（6 步驟指南 + FAQ + appsscript.json scope 說明）
+- `CLAUDE.md` - 新增 TBA 相關文件（doGet actions: tbaStatus/tbaSync、TBA 工作表列表、設定步驟摘要）
+
+### 5-Question Reboot Check
+1. **做什麼？** 在 Code.gs 中新增 TBA (The Blue Alliance) 自動同步功能，包含 7 個同步函式、ETag 快取、動態 Score Breakdown headers、syncAllTBA 協調器（時間守衛 4分40秒）、管理函式、doGet 擴展
+2. **進度？** 全部完成，已驗證 2025mslr 賽事資料同步（37 teams, 77 matches, 154 score breakdowns, 37 rankings, 37 OPRs, 8 alliances, 25 awards，6.3 秒）
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（新版本）、設定 TBA API Key（`setTBAApiKey('your-key')`）、設定賽事代碼（`setupTBAConfig('2026xxx')`）、設定自動觸發器（`setupTBATrigger(30)`）、實際比賽測試自動同步
+4. **阻礙？** 無（需注意：首次部署後要執行 authorizeTBA 觸發授權，且 appsscript.json 需加入 external_request + scriptapp scope）
+5. **檔案？** `google-apps-script/Code.gs`（TBA 同步全部功能），`google-apps-script/README.md`（TBA 設定指南），`CLAUDE.md`（TBA 文件更新）
+
+---
+
+## Session: 2026-02-04 (Path Viewer 大幅重寫 - 多路徑動畫、來源標籤、ID 修復)
+
+### 完成項目
+- [x] 建置驗證 - 確認上次 PathViewerPage.tsx 大幅重寫後建置通過
+- [x] 修復 React namespace import - 加入 `import React` 修復 `React.MouseEvent`/`React.TouchEvent` 類型問題
+- [x] 修復 handleQuery 卡住 loading - 將空值檢查移到 `setQueryLoading(true)` 之前，避免早期 return 後 loading 狀態永遠為 true
+- [x] seedTestData() 實作 - Code.gs 加入測試資料函數（12 筆 Match Data、4 筆 Path Data、5 筆 Pit Scouting）
+- [x] 刪除放大縮小功能 - 移除 zoom/pan 所有相關程式碼、狀態、事件處理
+- [x] 多路徑同時播放 - 從單路徑動畫架構改為 `Record<string, number>` 多路徑同時播放，加入 Play All 按鈕
+- [x] 修復 dedup 邏輯 - Code.gs queryPathsByTeam 中不同 matchLevel 同 matchNumber 不應視為重複
+- [x] 來源標籤功能 - 路徑顯示 SP（Scouting PASS）/ Pit（Pit Collect）來源標籤
+- [x] Pit Collect 測試資料 - seedTestData() 加入 5 筆 Pit Scouting 測試資料
+- [x] 修復路徑 ID 重複 - id 生成加入 matchLevel，防止同隊同場次不同等級路徑產生相同 ID 導致動畫連動
+- [x] 全部顯示/隱藏按鈕 - 路徑列表新增 toggle 按鈕，可一鍵顯示或隱藏所有路徑
+- [x] i18n 新增 hideAll、showAllPaths 翻譯（zh-TW + en）
+- [x] Commit ef7af55: feat: Path Viewer overhaul - multi-path animation, team query, seedTestData
+- [x] Commit db971b7: feat: add source label (Scouting PASS / Pit Collect) to path viewer
+- [x] Commit 6fcbfc2: fix: include matchLevel in path ID to prevent duplicate animation triggers
+- [x] Commit 61e4c0a: feat: add show all / hide all toggle button in path list
+
+### 修改檔案（5 個）
+- `src/pages/PathViewerPage.tsx` - 大幅重寫（zoom 移除、多路徑動畫 Record<string, number>、Play All、來源標籤 SP/Pit、ID 加入 matchLevel、全部顯示/隱藏按鈕）
+- `google-apps-script/Code.gs` - source 欄位回傳、queryPathsByTeam Pit 查詢、seedTestData()（Match+Path+Pit）、dedup 修復（matchLevel 區分）
+- `src/utils/sheets.ts` - 回應類型加入 `source?: string` 欄位
+- `src/i18n/locales/zh-TW.ts` - 新增路徑查詢/檢視器翻譯（多路徑播放、來源標籤、hideAll、showAllPaths）
+- `src/i18n/locales/en.ts` - 新增路徑查詢/檢視器英文翻譯（hideAll、showAllPaths）
+
+### 5-Question Reboot Check
+1. **做什麼？** Path Viewer 大幅重寫：移除 zoom/pan、實作多路徑同時播放動畫（Record<string, number>）、加入 Play All、加入來源標籤（SP/Pit）、修復路徑 ID 重複問題、新增全部顯示/隱藏按鈕
+2. **進度？** 全部完成，commits ef7af55 + db971b7 + 6fcbfc2 + 61e4c0a 已 push 到 main
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（seedTestData + source 欄位 + dedup 修復）、重新部署到 Vercel（`vercel --prod`）、實際測試多路徑動畫、來源標籤和全部顯示/隱藏功能
+4. **阻礙？** 無
+5. **檔案？** `src/pages/PathViewerPage.tsx`（多路徑動畫 + 來源標籤 + ID 修復 + 全部顯示/隱藏），`google-apps-script/Code.gs`（seedTestData + source + dedup），`src/utils/sheets.ts`（source 類型），`src/i18n/locales/zh-TW.ts`、`src/i18n/locales/en.ts`（翻譯）
 
 ---
 
@@ -522,9 +610,11 @@ frc-scout-scanner/
 - Pit External (Pit Collect): 22 欄位 (v2) 或 23 欄位 (v1 legacy, 含 stability)，decoder 自動偵測
 - Apps Script 會自動將 Path 合併到對應的 Match，也會將 Pit Path 合併到對應的 Pit External
 - Scanner 端掃描 pit-path QR 時，自動合併 autoPath 到同隊 pit-external 記錄（多條用 `;` 分隔）
-- Path Viewer 功能：座標可視化、自訂顏色、聯盟標籤(R/B)、圖層排序、後端查詢（queryPaths API）
+- Path Viewer 功能：座標可視化、自訂顏色、聯盟標籤(R/B)、圖層排序、後端查詢（queryPaths API）、多路徑同時播放動畫（Play All）、來源標籤（SP/Pit）、路徑 ID 含 matchLevel 防重複、全部顯示/隱藏按鈕
 - 場地圖：兩個專案（scanner + scouting pass）統一使用 3128x1584 版本
-- doGet() 支援 action 參數路由：無 action 時回傳 API 狀態，`action=queryPaths` 查詢路徑資料
+- doGet() 支援 action 參數路由：無 action 時回傳 API 狀態，`action=queryPaths` 查詢路徑資料，`action=tbaStatus` 查詢 TBA 同步狀態，`action=tbaSync` 觸發手動同步
+- TBA 自動同步：7 個同步函式（Teams/Matches/ScoreBreakdown/Rankings/OPRs/Alliances/Awards）、ETag 快取、syncAllTBA 協調器（時間守衛 280 秒）
+- TBA 工作表：TBA Teams, TBA Matches, TBA Score Breakdown, TBA Rankings, TBA OPRs, TBA Alliances, TBA Awards
 
 ---
 

@@ -48,6 +48,14 @@
 | E007 | Schema | Schema 欄位數不匹配導致「資料不完整」 | 2026-01-28 | 已解決 |
 | E008 | Schema | Pit Collect 雙版本欄位數不匹配導致「資料不完整」 | 2026-02-02 | 已解決 |
 | E009 | React | Stale closure 導致連續掃描多張 QR 時合併失敗 | 2026-02-03 | 已解決 |
+| E010 | TypeScript | React namespace import 缺失導致 MouseEvent/TouchEvent 類型錯誤 | 2026-02-04 | 已解決 |
+| E011 | React | handleQuery 空值檢查位置錯誤導致 loading 狀態卡住 | 2026-02-04 | 已解決 |
+| E012 | Apps Script | TBA sync error 回傳缺少 rows 屬性 | 2026-02-04 | 已解決 |
+| E013 | Apps Script | syncAllTBA log 未印出錯誤原因 | 2026-02-04 | 已解決 |
+| E014 | Apps Script | UrlFetchApp.fetch 權限不足（缺少 external_request scope） | 2026-02-04 | 已解決 |
+| E015 | Apps Script | ScriptApp 權限不足（缺少 scriptapp scope） | 2026-02-04 | 已解決 |
+| E016 | Apps Script | ETag 快取導致首次 manualSyncTBA 全部 not_modified | 2026-02-04 | 已解決 |
+| E017 | Logic | getMatchKey 缺少 matchLevel 導致不同比賽等級被誤判為重複 | 2026-02-05 | 已解決 |
 
 ---
 
@@ -389,6 +397,315 @@ const handleScan = useCallback((result) => {
 
 ---
 
+### [E010] React Namespace Import 缺失導致類型錯誤
+
+**日期**：2026-02-04
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+error TS2503: Cannot find namespace 'React'.
+  React.MouseEvent / React.TouchEvent
+```
+
+**根本原因**：
+- PathViewerPage.tsx 使用了 `React.MouseEvent` 和 `React.TouchEvent` 類型
+- 但檔案頂部只有 `import { useState, useEffect, ... } from 'react'`，沒有 `import React from 'react'`
+- TypeScript 需要 React namespace import 才能使用 `React.XXX` 類型語法
+
+**解決方案**：
+```typescript
+// 加入 React default import
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+```
+
+**預防措施**：
+- 當使用 `React.XXX` 類型（如 `React.MouseEvent`、`React.TouchEvent`、`React.CSSProperties`）時，必須有 `import React` default import
+- 或改用直接 import：`import { MouseEvent, TouchEvent } from 'react'`
+
+**相關檔案**：
+- src/pages/PathViewerPage.tsx
+
+---
+
+### [E011] handleQuery 空值檢查位置錯誤導致 Loading 狀態卡住
+
+**日期**：2026-02-04
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+查詢按鈕點擊後 spinner 永遠轉不停，無法再次查詢
+```
+
+**根本原因**：
+- `handleQuery()` 函數中 `setQueryLoading(true)` 在空值檢查之前執行
+- 當 eventCode 或 matchNumber 為空時，函數提前 return，但 loading 已被設為 true
+- 沒有對應的 `setQueryLoading(false)` 被執行，loading 狀態永遠卡在 true
+
+```typescript
+// 錯誤順序
+const handleQuery = async () => {
+  setQueryLoading(true);  // 設為 true
+  if (!eventCode || !matchNumber) return;  // 提前 return，loading 永遠是 true！
+  // ...
+};
+```
+
+**解決方案**：
+```typescript
+// 正確順序：先檢查，再設 loading
+const handleQuery = async () => {
+  if (!eventCode || !matchNumber) return;  // 先檢查
+  setQueryLoading(true);  // 確定要查詢才設 loading
+  try {
+    // ...
+  } finally {
+    setQueryLoading(false);
+  }
+};
+```
+
+**預防措施**：
+- `setLoading(true)` 必須在所有提前 return 的條件檢查之後
+- 或使用 `try/finally` 確保 loading 一定會被重置
+- 任何設置 loading 狀態的函數，都要確認所有的退出路徑都有對應的重置
+
+**相關檔案**：
+- src/pages/PathViewerPage.tsx
+
+---
+
+### [E012] TBA Sync Error 回傳缺少 rows 屬性
+
+**日期**：2026-02-04
+**嚴重程度**：低
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+syncAllTBA 的 logResult 輔助函式存取 result.rows 時回傳 undefined
+```
+
+**根本原因**：
+- 各 sync 函式在 error 路徑回傳 `{ status: 'error', error: '...' }` 時，沒有包含 `rows` 屬性
+- syncAllTBA 的結果彙總假設所有回傳物件都有 `rows` 屬性
+
+**解決方案**：
+```javascript
+// 在 error 回傳中加入 rows: 0
+return { status: 'error', error: e.message, rows: 0 };
+```
+
+**預防措施**：
+- 定義統一的回傳格式 interface，確保所有路徑（success/not_modified/error）都包含必要欄位
+- error 路徑也要提供合理的預設值（rows: 0）
+
+**相關檔案**：
+- google-apps-script/Code.gs
+
+---
+
+### [E013] syncAllTBA Log 未印出錯誤原因
+
+**日期**：2026-02-04
+**嚴重程度**：低
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Logger.log 只顯示 "Teams: error"，沒有具體錯誤訊息
+```
+
+**根本原因**：
+- syncAllTBA 中的 log 只印出 `result.status`，沒有印出 `result.error`
+- 當同步失敗時無法從 log 中得知失敗原因
+
+**解決方案**：
+```javascript
+// 加入 logResult 輔助函式
+function logResult(name, result) {
+  var msg = name + ': ' + result.status + ' (' + result.rows + ' rows)';
+  if (result.error) msg += ' - ' + result.error;
+  Logger.log(msg);
+}
+```
+
+**預防措施**：
+- 所有協調器函式（orchestrator）在 log 中應包含子任務的完整結果資訊
+- error 路徑的 log 必須包含錯誤訊息，不能只印狀態碼
+
+**相關檔案**：
+- google-apps-script/Code.gs
+
+---
+
+### [E014] UrlFetchApp.fetch 權限不足
+
+**日期**：2026-02-04
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Exception: You do not have permission to call UrlFetchApp.fetch
+```
+
+**根本原因**：
+- Google Apps Script 的 `UrlFetchApp.fetch()` 需要 `https://www.googleapis.com/auth/script.external_request` OAuth scope
+- 預設的 Apps Script 部署不包含此 scope
+- Web App 部署後不會自動提示授權外部請求
+
+**解決方案**：
+1. 在 Apps Script 編輯器中，點擊「專案設定」→ 勾選「在編輯器中顯示 appsscript.json 資訊清單檔案」
+2. 在 appsscript.json 中加入 scope：
+```json
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request"
+  ]
+}
+```
+3. 執行 `authorizeTBA()` 函式觸發授權提示
+4. 重新部署 Web App
+
+**預防措施**：
+- 使用 `UrlFetchApp`、`ScriptApp` 等需要額外權限的 API 時，必須在 appsscript.json 中明確聲明 scope
+- 提供 `authorizeTBA()` 類的輔助函式，讓用戶手動觸發授權流程
+- 在 README 中明確記錄所需的 scope 和授權步驟
+
+**相關檔案**：
+- google-apps-script/Code.gs
+- google-apps-script/README.md
+
+---
+
+### [E015] ScriptApp 權限不足
+
+**日期**：2026-02-04
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Exception: You do not have permission to call ScriptApp.newTrigger
+```
+
+**根本原因**：
+- `ScriptApp.newTrigger()` 需要 `https://www.googleapis.com/auth/script.scriptapp` OAuth scope
+- 與 UrlFetchApp 類似，Web App 部署不會自動提示此權限
+
+**解決方案**：
+```json
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ]
+}
+```
+
+**預防措施**：
+- 所有需要的 scope 應在開發初期就加入 appsscript.json，避免部署後才發現權限不足
+- 在 README 的部署指南中列出完整的 scope 清單
+
+**相關檔案**：
+- google-apps-script/Code.gs
+- google-apps-script/README.md
+
+---
+
+### [E016] ETag 快取導致首次 manualSyncTBA 全部 not_modified
+
+**日期**：2026-02-04
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+manualSyncTBA 執行後所有 7 個同步函式都回傳 not_modified，Google Sheets 沒有任何資料
+```
+
+**根本原因**：
+- 開發過程中手動測試各個 sync 函式（如 `syncTBATeams('2025mslr')`）時，已將 ETag 儲存到 ScriptProperties
+- 當後來通過 `manualSyncTBA()` 統一執行時，所有 endpoint 都已有 cached ETag
+- TBA API 回傳 304 not_modified，sync 函式跳過寫入
+- 但工作表可能是空的（之前測試的資料已被清除或工作表被重建）
+
+**解決方案**：
+```javascript
+// 新增 forceSyncTBA：先清 ETag 再同步
+function forceSyncTBA() {
+  clearTBAETags();  // 清除所有 tba_etag_* 的 ScriptProperties
+  syncAllTBA();
+}
+
+// 新增 clearTBAETags：清除所有 TBA ETag 快取
+function clearTBAETags() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  for (var key in all) {
+    if (key.indexOf('tba_etag_') === 0) {
+      props.deleteProperty(key);
+    }
+  }
+}
+```
+
+**預防措施**：
+- 提供 `forceSyncTBA()` 作為「強制重新同步」的工具
+- 在 README 中說明 ETag 快取的行為，並告知用戶首次設定後應使用 `forceSyncTBA()` 而非 `manualSyncTBA()`
+- 開發階段的測試快取可能影響整合測試，需要注意清除
+
+**相關檔案**：
+- google-apps-script/Code.gs
+
+---
+
+### [E017] getMatchKey 缺少 matchLevel 導致不同比賽等級被誤判為重複
+
+**日期**：2026-02-05
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+掃描 Playoff #5 的 QR code 時，系統顯示「重複掃描」，因為之前已掃描 Quals #5
+```
+
+**根本原因**：
+- `getMatchKey` 函數只使用 `eventCode_matchNumber_teamNumber` 組合 key
+- 沒有包含 `matchLevel` 維度
+- 導致 Quals #5 和 Playoff #5 產生相同的 key（如 `2026MSLR_5_6998`）
+- 系統誤判為重複資料
+
+**解決方案**：
+```typescript
+// 舊 key 生成（錯誤）
+function getMatchKey(data: DecodedData): string {
+  return `${data.eventCode}_${data.matchNumber}_${data.teamNumber}`;
+}
+
+// 新 key 生成（正確）
+function getMatchKey(data: DecodedData): string {
+  return `${data.eventCode}_${data.matchLevel}_${data.matchNumber}_${data.teamNumber}`;
+}
+```
+
+**預防措施**：
+- 任何涉及 FRC 比賽數據「唯一標識」的邏輯都必須考慮 `matchLevel` 維度
+- 這是繼路徑 ID 問題（2026-02-04）後的第二次提醒
+- 建立檢查清單：唯一性 key = eventCode + matchLevel + matchNumber + teamNumber
+
+**相關檔案**：
+- src/utils/decoder.ts
+
+---
+
 ## 常見錯誤模式
 
 ### 1. TypeScript 類型錯誤
@@ -505,12 +822,12 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 9 |
-| 已解決 | 9 |
+| 總錯誤數 | 17 |
+| 已解決 | 17 |
 | 進行中 | 0 |
-| 高嚴重度 | 6 |
-| 中嚴重度 | 3 |
-| 低嚴重度 | 0 |
+| 高嚴重度 | 9 |
+| 中嚴重度 | 6 |
+| 低嚴重度 | 2 |
 
 ---
 
@@ -523,4 +840,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-02-03*
+*最後更新：2026-02-05*

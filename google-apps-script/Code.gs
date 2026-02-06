@@ -141,16 +141,34 @@ function doGet(e) {
     return handleQueryTeamPaths(e.parameter);
   }
 
+  if (action === 'tbaStatus') {
+    return handleTBAStatus();
+  }
+
+  if (action === 'tbaSync') {
+    return handleTBASync();
+  }
+
+  if (action === 'debug') {
+    return handleDebug();
+  }
+
+  if (action === 'fixHeaders') {
+    return handleFixHeaders();
+  }
+
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.2.0',
+    version: '1.3.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
       GET: 'API status check',
       'GET ?action=queryPaths': 'Query path data by match',
-      'GET ?action=queryTeamPaths': 'Query path data by team'
+      'GET ?action=queryTeamPaths': 'Query path data by team',
+      'GET ?action=tbaStatus': 'TBA sync status',
+      'GET ?action=tbaSync': 'Trigger TBA sync'
     },
     schema: {
       match: TSV_SCHEMA_MATCH.length,
@@ -160,6 +178,139 @@ function doGet(e) {
   };
 
   return createJsonResponse(response);
+}
+
+/**
+ * 除錯端點 - 回傳工作表概況
+ * GET ?action=debug
+ */
+function handleDebug() {
+  try {
+    var info = {};
+    var sheets = ['Match Data', 'Path Data', 'Pit Scouting'];
+    for (var s = 0; s < sheets.length; s++) {
+      var sheet = getSheet(sheets[s]);
+      if (!sheet) {
+        info[sheets[s]] = { exists: false };
+        continue;
+      }
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      var sheetInfo = { exists: true, rows: lastRow, columns: lastCol };
+      if (lastRow >= 1) {
+        var data = sheet.getDataRange().getValues();
+        var headers = data[0];
+        sheetInfo.headers = headers;
+        // 顯示前 3 行樣本資料
+        sheetInfo.sampleRows = [];
+        for (var r = 1; r < Math.min(data.length, 4); r++) {
+          sheetInfo.sampleRows.push(data[r].map(function(v) { return String(v); }));
+        }
+        var eventIdx = headers.indexOf('eventCode');
+        var teamIdx = headers.indexOf('teamNumber');
+        var autoPathIdx = headers.indexOf('autoPath');
+        var events = {}, teams = {}, pathCount = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (eventIdx >= 0) events[String(data[i][eventIdx])] = (events[String(data[i][eventIdx])] || 0) + 1;
+          if (teamIdx >= 0) teams[String(data[i][teamIdx])] = true;
+          if (autoPathIdx >= 0) {
+            var ap = String(data[i][autoPathIdx]);
+            if (ap && ap !== 'None' && ap !== 'undefined' && ap.trim() !== '') pathCount++;
+          }
+        }
+        sheetInfo.eventCodes = events;
+        sheetInfo.teamCount = Object.keys(teams).length;
+        sheetInfo.sampleTeams = Object.keys(teams).slice(0, 10);
+        sheetInfo.rowsWithAutoPath = pathCount;
+      }
+      info[sheets[s]] = sheetInfo;
+    }
+    info.expectedHeaders = {
+      match: SHEET_HEADERS.MATCH,
+      matchLength: SHEET_HEADERS.MATCH.length
+    };
+    return createJsonResponse({ success: true, debug: info });
+  } catch (error) {
+    return createJsonResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * 修復工作表標頭
+ * GET ?action=fixHeaders
+ */
+function handleFixHeaders() {
+  try {
+    var results = {};
+    var sheetConfigs = [
+      { name: CONFIG.SHEET_MATCH, headers: SHEET_HEADERS.MATCH },
+      { name: CONFIG.SHEET_PATH, headers: SHEET_HEADERS.PATH },
+      { name: CONFIG.SHEET_PIT, headers: SHEET_HEADERS.PIT }
+    ];
+
+    for (var i = 0; i < sheetConfigs.length; i++) {
+      var cfg = sheetConfigs[i];
+      var sheet = getSheet(cfg.name);
+      if (!sheet) {
+        results[cfg.name] = 'not found';
+        continue;
+      }
+
+      var lastRow = sheet.getLastRow();
+      if (lastRow < 1) {
+        // 空工作表，直接寫入標頭
+        sheet.getRange(1, 1, 1, cfg.headers.length).setValues([cfg.headers]);
+        results[cfg.name] = 'headers written (empty sheet)';
+        continue;
+      }
+
+      // 檢查第一行是否為空或不正確
+      var currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      var isEmpty = currentHeaders.every(function(h) { return !h || String(h).trim() === ''; });
+
+      if (isEmpty) {
+        // 第一行是空的 - 檢查是否為資料行（需要插入標頭行）
+        // 看第一行的資料模式來判斷
+        var firstRowHasData = currentHeaders.some(function(v) {
+          return v !== '' && v !== null && v !== undefined;
+        });
+
+        if (!firstRowHasData && lastRow > 1) {
+          // 第一行完全空白，第二行開始有資料 -> 直接覆蓋第一行
+          sheet.getRange(1, 1, 1, cfg.headers.length).setValues([cfg.headers]);
+          results[cfg.name] = 'headers written to empty row 1 (' + lastRow + ' total rows)';
+        } else {
+          // 第一行可能是資料 -> 插入新行作為標頭
+          sheet.insertRowBefore(1);
+          sheet.getRange(1, 1, 1, cfg.headers.length).setValues([cfg.headers]);
+          results[cfg.name] = 'headers inserted as new row 1 (' + (lastRow + 1) + ' total rows)';
+        }
+      } else {
+        // 檢查是否已有正確標頭
+        var hasCorrectHeaders = cfg.headers.every(function(h, idx) {
+          return String(currentHeaders[idx] || '') === h;
+        });
+        if (hasCorrectHeaders) {
+          results[cfg.name] = 'headers already correct';
+        } else {
+          // 標頭不正確，覆蓋
+          sheet.getRange(1, 1, 1, cfg.headers.length).setValues([cfg.headers]);
+          results[cfg.name] = 'headers overwritten (were incorrect)';
+        }
+      }
+
+      // 設定標頭樣式
+      sheet.getRange(1, 1, 1, cfg.headers.length)
+        .setFontWeight('bold')
+        .setBackground('#4285f4')
+        .setFontColor('#ffffff');
+      sheet.setFrozenRows(1);
+    }
+
+    return createJsonResponse({ success: true, results: results });
+  } catch (error) {
+    return createJsonResponse({ success: false, error: error.message });
+  }
 }
 
 /**
@@ -788,13 +939,27 @@ function getOrCreateSheet(sheetName, headers) {
 
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    // 設定標題列
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold')
       .setBackground('#4285f4')
       .setFontColor('#ffffff');
     sheet.setFrozenRows(1);
+  } else {
+    // 檢查現有工作表的標頭是否正確，空白則自動修復
+    var lastCol = sheet.getLastColumn();
+    if (lastCol > 0) {
+      var currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      var isEmpty = currentHeaders.every(function(h) { return !h || String(h).trim() === ''; });
+      if (isEmpty) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+        sheet.getRange(1, 1, 1, headers.length)
+          .setFontWeight('bold')
+          .setBackground('#4285f4')
+          .setFontColor('#ffffff');
+        sheet.setFrozenRows(1);
+      }
+    }
   }
 
   return sheet;
@@ -1230,4 +1395,709 @@ function clearTestData() {
   });
 
   console.log('Test data cleared!');
+}
+
+// ============================================
+// TBA (The Blue Alliance) 同步功能
+// ============================================
+
+/**
+ * TBA 設定
+ */
+var TBA_CONFIG = {
+  BASE_URL: 'https://www.thebluealliance.com/api/v3',
+  EVENT_KEY: '2025mslr',
+
+  // 工作表名稱
+  SHEET_TEAMS: 'TBA Teams',
+  SHEET_MATCHES: 'TBA Matches',
+  SHEET_SCORE_BREAKDOWN: 'TBA Score Breakdown',
+  SHEET_RANKINGS: 'TBA Rankings',
+  SHEET_OPRS: 'TBA OPRs',
+  SHEET_ALLIANCES: 'TBA Alliances',
+  SHEET_AWARDS: 'TBA Awards',
+
+  // 時間限制（毫秒），避免 Apps Script 6 分鐘超時
+  TIME_LIMIT_MS: 280000  // 4 分 40 秒
+};
+
+/**
+ * TBA 工作表標題定義
+ */
+var TBA_HEADERS = {
+  TEAMS: ['teamNumber', 'nickname', 'city', 'stateProv', 'country', 'rookieYear', 'lastSynced'],
+  MATCHES: ['matchKey', 'compLevel', 'setNumber', 'matchNumber',
+            'redTeam1', 'redTeam2', 'redTeam3',
+            'blueTeam1', 'blueTeam2', 'blueTeam3',
+            'redScore', 'blueScore', 'winningAlliance', 'time', 'lastSynced'],
+  RANKINGS: ['rank', 'teamNumber', 'wins', 'losses', 'ties', 'matchesPlayed',
+             'sortOrder1', 'sortOrder2', 'sortOrder3', 'extraStat1', 'lastSynced'],
+  OPRS: ['teamNumber', 'opr', 'dpr', 'ccwm', 'lastSynced'],
+  ALLIANCES: ['allianceNumber', 'captain', 'pick1', 'pick2', 'pick3',
+              'status', 'level', 'lastSynced'],
+  AWARDS: ['awardName', 'awardType', 'teamNumber', 'awardee', 'lastSynced']
+};
+
+// ============================================
+// TBA 核心工具函式
+// ============================================
+
+/**
+ * TBA API 請求（含 ETag 快取）
+ * @param {string} endpoint - API 端點（不含 base URL）
+ * @returns {Object} { status: 'ok'|'not_modified'|'error', data: any, error?: string }
+ */
+function tbaFetch(endpoint) {
+  var props = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('TBA_API_KEY');
+
+  if (!apiKey) {
+    return { status: 'error', data: null, error: 'TBA API key not set. Run setTBAApiKey() first.' };
+  }
+
+  var url = TBA_CONFIG.BASE_URL + endpoint;
+  var etagKey = 'tba_etag_' + endpoint;
+  var etag = props.getProperty(etagKey) || '';
+
+  var options = {
+    method: 'get',
+    headers: {
+      'X-TBA-Auth-Key': apiKey
+    },
+    muteHttpExceptions: true
+  };
+
+  if (etag) {
+    options.headers['If-None-Match'] = etag;
+  }
+
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+
+    if (code === 304) {
+      return { status: 'not_modified', data: null };
+    }
+
+    if (code === 200) {
+      var newEtag = response.getHeaders()['ETag'] || response.getHeaders()['etag'] || '';
+      if (newEtag) {
+        props.setProperty(etagKey, newEtag);
+      }
+      var data = JSON.parse(response.getContentText());
+      return { status: 'ok', data: data };
+    }
+
+    return { status: 'error', data: null, error: 'HTTP ' + code + ': ' + response.getContentText().substring(0, 200) };
+  } catch (e) {
+    return { status: 'error', data: null, error: e.message };
+  }
+}
+
+/**
+ * 將 TBA team key 轉為隊伍號碼
+ * "frc6998" → "6998"
+ */
+function stripFrcPrefix(teamKey) {
+  if (!teamKey) return '';
+  return String(teamKey).replace(/^frc/i, '');
+}
+
+/**
+ * Clear-and-replace 批次寫入工作表
+ * @param {string} sheetName - 工作表名稱
+ * @param {string[]} headers - 標題列
+ * @param {any[][]} rows - 資料列（二維陣列）
+ * @returns {number} 寫入的行數
+ */
+function writeSheetData(sheetName, headers, rows) {
+  var sheet = getOrCreateSheet(sheetName, headers);
+
+  // 清除標題以下所有資料
+  if (sheet.getLastRow() > 1) {
+    sheet.deleteRows(2, sheet.getLastRow() - 1);
+  }
+
+  // 批次寫入
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  return rows.length;
+}
+
+// ============================================
+// TBA 同步函式（7 個）
+// ============================================
+
+/**
+ * 同步 TBA Teams
+ */
+function syncTBATeams(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/teams');
+  if (result.status === 'not_modified') return { sheet: TBA_CONFIG.SHEET_TEAMS, status: 'not_modified', rows: 0 };
+  if (result.status === 'error') return { sheet: TBA_CONFIG.SHEET_TEAMS, status: 'error', rows: 0, error: result.error };
+
+  var now = new Date().toISOString();
+  var teams = result.data || [];
+
+  // 按 teamNumber 排序
+  teams.sort(function(a, b) { return a.team_number - b.team_number; });
+
+  var rows = teams.map(function(t) {
+    return [
+      t.team_number || '',
+      t.nickname || '',
+      t.city || '',
+      t.state_prov || '',
+      t.country || '',
+      t.rookie_year || '',
+      now
+    ];
+  });
+
+  var count = writeSheetData(TBA_CONFIG.SHEET_TEAMS, TBA_HEADERS.TEAMS, rows);
+  return { sheet: TBA_CONFIG.SHEET_TEAMS, status: 'ok', rows: count };
+}
+
+/**
+ * 同步 TBA Matches 和 Score Breakdown（共用一次 API call）
+ * @returns {Object} { matches: {...}, scoreBreakdown: {...} }
+ */
+function syncTBAMatchesAndBreakdown(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/matches');
+  if (result.status === 'not_modified') {
+    return {
+      matches: { sheet: TBA_CONFIG.SHEET_MATCHES, status: 'not_modified', rows: 0 },
+      scoreBreakdown: { sheet: TBA_CONFIG.SHEET_SCORE_BREAKDOWN, status: 'not_modified', rows: 0 }
+    };
+  }
+  if (result.status === 'error') {
+    return {
+      matches: { sheet: TBA_CONFIG.SHEET_MATCHES, status: 'error', rows: 0, error: result.error },
+      scoreBreakdown: { sheet: TBA_CONFIG.SHEET_SCORE_BREAKDOWN, status: 'error', rows: 0, error: result.error }
+    };
+  }
+
+  var now = new Date().toISOString();
+  var matches = result.data || [];
+
+  // --- Matches ---
+  var compLevelOrder = { qm: 1, ef: 2, qf: 3, sf: 4, f: 5 };
+
+  matches.sort(function(a, b) {
+    var la = compLevelOrder[a.comp_level] || 99;
+    var lb = compLevelOrder[b.comp_level] || 99;
+    if (la !== lb) return la - lb;
+    if (a.set_number !== b.set_number) return a.set_number - b.set_number;
+    return a.match_number - b.match_number;
+  });
+
+  var matchRows = matches.map(function(m) {
+    var red = (m.alliances && m.alliances.red && m.alliances.red.team_keys) || [];
+    var blue = (m.alliances && m.alliances.blue && m.alliances.blue.team_keys) || [];
+    var redScore = (m.alliances && m.alliances.red) ? m.alliances.red.score : '';
+    var blueScore = (m.alliances && m.alliances.blue) ? m.alliances.blue.score : '';
+    var timeStr = m.time ? new Date(m.time * 1000).toISOString() : '';
+
+    return [
+      m.key || '',
+      m.comp_level || '',
+      m.set_number || '',
+      m.match_number || '',
+      stripFrcPrefix(red[0]),
+      stripFrcPrefix(red[1]),
+      stripFrcPrefix(red[2]),
+      stripFrcPrefix(blue[0]),
+      stripFrcPrefix(blue[1]),
+      stripFrcPrefix(blue[2]),
+      redScore !== null && redScore !== undefined ? redScore : '',
+      blueScore !== null && blueScore !== undefined ? blueScore : '',
+      m.winning_alliance || '',
+      timeStr,
+      now
+    ];
+  });
+
+  var matchCount = writeSheetData(TBA_CONFIG.SHEET_MATCHES, TBA_HEADERS.MATCHES, matchRows);
+
+  // --- Score Breakdown (dynamic headers) ---
+  var breakdownResult = buildScoreBreakdownData(matches, now);
+
+  var sbCount = 0;
+  if (breakdownResult.rows.length > 0) {
+    sbCount = writeSheetData(TBA_CONFIG.SHEET_SCORE_BREAKDOWN, breakdownResult.headers, breakdownResult.rows);
+  }
+
+  return {
+    matches: { sheet: TBA_CONFIG.SHEET_MATCHES, status: 'ok', rows: matchCount },
+    scoreBreakdown: { sheet: TBA_CONFIG.SHEET_SCORE_BREAKDOWN, status: 'ok', rows: sbCount }
+  };
+}
+
+/**
+ * 從 matches 資料建立 Score Breakdown 的 headers 和 rows
+ * Headers 動態產生（根據遊戲規則不同而變化）
+ */
+function buildScoreBreakdownData(matches, now) {
+  // 收集所有 score_breakdown 的 key
+  var allKeys = {};
+  var breakdownEntries = [];
+
+  for (var i = 0; i < matches.length; i++) {
+    var m = matches[i];
+    if (!m.score_breakdown) continue;
+
+    var alliances = ['red', 'blue'];
+    for (var a = 0; a < alliances.length; a++) {
+      var alliance = alliances[a];
+      var bd = m.score_breakdown[alliance];
+      if (!bd) continue;
+
+      // 收集所有 key
+      for (var key in bd) {
+        if (bd.hasOwnProperty(key)) {
+          allKeys[key] = true;
+        }
+      }
+
+      breakdownEntries.push({
+        matchKey: m.key,
+        alliance: alliance,
+        breakdown: bd
+      });
+    }
+  }
+
+  // 建立排序後的 key 列表
+  var sortedKeys = Object.keys(allKeys).sort();
+
+  if (sortedKeys.length === 0) {
+    return { headers: ['matchKey', 'alliance', 'lastSynced'], rows: [] };
+  }
+
+  // 建立 headers: matchKey, alliance, ...dynamic keys..., lastSynced
+  var headers = ['matchKey', 'alliance'].concat(sortedKeys).concat(['lastSynced']);
+
+  // 建立 rows
+  var rows = breakdownEntries.map(function(entry) {
+    var row = [entry.matchKey, entry.alliance];
+    for (var k = 0; k < sortedKeys.length; k++) {
+      var val = entry.breakdown[sortedKeys[k]];
+      row.push(val !== undefined && val !== null ? val : '');
+    }
+    row.push(now);
+    return row;
+  });
+
+  return { headers: headers, rows: rows };
+}
+
+/**
+ * 同步 TBA Rankings
+ */
+function syncTBARankings(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/rankings');
+  if (result.status === 'not_modified') return { sheet: TBA_CONFIG.SHEET_RANKINGS, status: 'not_modified', rows: 0 };
+  if (result.status === 'error') return { sheet: TBA_CONFIG.SHEET_RANKINGS, status: 'error', rows: 0, error: result.error };
+
+  var now = new Date().toISOString();
+  var rankings = (result.data && result.data.rankings) || [];
+
+  var rows = rankings.map(function(r) {
+    var record = r.record || {};
+    var sortOrders = r.sort_orders || [];
+    var extraStats = r.extra_stats || [];
+    return [
+      r.rank || '',
+      stripFrcPrefix(r.team_key),
+      record.wins || 0,
+      record.losses || 0,
+      record.ties || 0,
+      r.matches_played || 0,
+      sortOrders[0] !== undefined ? sortOrders[0] : '',
+      sortOrders[1] !== undefined ? sortOrders[1] : '',
+      sortOrders[2] !== undefined ? sortOrders[2] : '',
+      extraStats[0] !== undefined ? extraStats[0] : '',
+      now
+    ];
+  });
+
+  var count = writeSheetData(TBA_CONFIG.SHEET_RANKINGS, TBA_HEADERS.RANKINGS, rows);
+  return { sheet: TBA_CONFIG.SHEET_RANKINGS, status: 'ok', rows: count };
+}
+
+/**
+ * 同步 TBA OPRs
+ */
+function syncTBAOPRs(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/oprs');
+  if (result.status === 'not_modified') return { sheet: TBA_CONFIG.SHEET_OPRS, status: 'not_modified', rows: 0 };
+  if (result.status === 'error') return { sheet: TBA_CONFIG.SHEET_OPRS, status: 'error', rows: 0, error: result.error };
+
+  var now = new Date().toISOString();
+  var data = result.data || {};
+  var oprs = data.oprs || {};
+  var dprs = data.dprs || {};
+  var ccwms = data.ccwms || {};
+
+  // 收集所有隊伍 key
+  var teamKeys = Object.keys(oprs);
+  teamKeys.sort(function(a, b) {
+    return (oprs[b] || 0) - (oprs[a] || 0);  // OPR DESC
+  });
+
+  var rows = teamKeys.map(function(tk) {
+    return [
+      stripFrcPrefix(tk),
+      oprs[tk] !== undefined ? Math.round(oprs[tk] * 100) / 100 : '',
+      dprs[tk] !== undefined ? Math.round(dprs[tk] * 100) / 100 : '',
+      ccwms[tk] !== undefined ? Math.round(ccwms[tk] * 100) / 100 : '',
+      now
+    ];
+  });
+
+  var count = writeSheetData(TBA_CONFIG.SHEET_OPRS, TBA_HEADERS.OPRS, rows);
+  return { sheet: TBA_CONFIG.SHEET_OPRS, status: 'ok', rows: count };
+}
+
+/**
+ * 同步 TBA Alliances
+ */
+function syncTBAAlliances(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/alliances');
+  if (result.status === 'not_modified') return { sheet: TBA_CONFIG.SHEET_ALLIANCES, status: 'not_modified', rows: 0 };
+  if (result.status === 'error') return { sheet: TBA_CONFIG.SHEET_ALLIANCES, status: 'error', rows: 0, error: result.error };
+
+  var now = new Date().toISOString();
+  var alliances = result.data || [];
+
+  var rows = alliances.map(function(a, idx) {
+    var picks = a.picks || [];
+    var status = a.status || {};
+    return [
+      idx + 1,
+      stripFrcPrefix(picks[0]),
+      stripFrcPrefix(picks[1]),
+      stripFrcPrefix(picks[2]),
+      stripFrcPrefix(picks[3]),
+      status.status || '',
+      status.level || '',
+      now
+    ];
+  });
+
+  var count = writeSheetData(TBA_CONFIG.SHEET_ALLIANCES, TBA_HEADERS.ALLIANCES, rows);
+  return { sheet: TBA_CONFIG.SHEET_ALLIANCES, status: 'ok', rows: count };
+}
+
+/**
+ * 同步 TBA Awards
+ */
+function syncTBAAwards(eventKey) {
+  var result = tbaFetch('/event/' + eventKey + '/awards');
+  if (result.status === 'not_modified') return { sheet: TBA_CONFIG.SHEET_AWARDS, status: 'not_modified', rows: 0 };
+  if (result.status === 'error') return { sheet: TBA_CONFIG.SHEET_AWARDS, status: 'error', rows: 0, error: result.error };
+
+  var now = new Date().toISOString();
+  var awards = result.data || [];
+
+  var rows = [];
+  for (var i = 0; i < awards.length; i++) {
+    var award = awards[i];
+    var recipients = award.recipient_list || [];
+    for (var j = 0; j < recipients.length; j++) {
+      var r = recipients[j];
+      rows.push([
+        award.name || '',
+        award.award_type || '',
+        r.team_key ? stripFrcPrefix(r.team_key) : '',
+        r.awardee || '',
+        now
+      ]);
+    }
+  }
+
+  // 按 awardName 排序
+  rows.sort(function(a, b) {
+    return String(a[0]).localeCompare(String(b[0]));
+  });
+
+  var count = writeSheetData(TBA_CONFIG.SHEET_AWARDS, TBA_HEADERS.AWARDS, rows);
+  return { sheet: TBA_CONFIG.SHEET_AWARDS, status: 'ok', rows: count };
+}
+
+// ============================================
+// TBA 協調器
+// ============================================
+
+/**
+ * 同步所有 TBA 資料（主要入口）
+ * 會追蹤經過時間，若接近超時則提前停止
+ */
+function syncAllTBA() {
+  var startTime = new Date().getTime();
+  var eventKey = TBA_CONFIG.EVENT_KEY;
+  var results = [];
+
+  function elapsed() {
+    return new Date().getTime() - startTime;
+  }
+
+  function timeOk() {
+    return elapsed() < TBA_CONFIG.TIME_LIMIT_MS;
+  }
+
+  console.log('=== TBA Sync Start: ' + eventKey + ' ===');
+
+  function logResult(name, r) {
+    if (r.status === 'error') {
+      console.log(name + ': ERROR - ' + r.error);
+    } else {
+      console.log(name + ': ' + r.status + ' (' + r.rows + ' rows)');
+    }
+  }
+
+  // 1. Teams
+  if (timeOk()) {
+    var teamsResult = syncTBATeams(eventKey);
+    results.push(teamsResult);
+    logResult('Teams', teamsResult);
+  }
+
+  // 2 & 3. Matches + Score Breakdown (shared API call)
+  if (timeOk()) {
+    var matchBreakdown = syncTBAMatchesAndBreakdown(eventKey);
+    results.push(matchBreakdown.matches);
+    results.push(matchBreakdown.scoreBreakdown);
+    logResult('Matches', matchBreakdown.matches);
+    logResult('Score Breakdown', matchBreakdown.scoreBreakdown);
+  }
+
+  // 4. Rankings
+  if (timeOk()) {
+    var rankingsResult = syncTBARankings(eventKey);
+    results.push(rankingsResult);
+    logResult('Rankings', rankingsResult);
+  }
+
+  // 5. OPRs
+  if (timeOk()) {
+    var oprsResult = syncTBAOPRs(eventKey);
+    results.push(oprsResult);
+    logResult('OPRs', oprsResult);
+  }
+
+  // 6. Alliances
+  if (timeOk()) {
+    var alliancesResult = syncTBAAlliances(eventKey);
+    results.push(alliancesResult);
+    logResult('Alliances', alliancesResult);
+  }
+
+  // 7. Awards
+  if (timeOk()) {
+    var awardsResult = syncTBAAwards(eventKey);
+    results.push(awardsResult);
+    logResult('Awards', awardsResult);
+  }
+
+  var totalMs = elapsed();
+  console.log('=== TBA Sync Complete: ' + totalMs + 'ms ===');
+
+  return {
+    eventKey: eventKey,
+    results: results,
+    elapsedMs: totalMs,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// ============================================
+// TBA 設定 / 管理函式
+// ============================================
+
+/**
+ * 設定 TBA API Key
+ * 在 Apps Script 編輯器中執行：setTBAApiKey('your_read_api_key')
+ */
+function setTBAApiKey(key) {
+  if (!key) {
+    console.log('Error: API key is empty. Get your key at https://www.thebluealliance.com/account');
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty('TBA_API_KEY', key);
+  console.log('TBA API key saved successfully.');
+}
+
+/**
+ * 測試 TBA 連線 + 建立所有 TBA 工作表
+ */
+function setupTBAConfig() {
+  // 測試 API 連線
+  var result = tbaFetch('/event/' + TBA_CONFIG.EVENT_KEY + '/teams');
+
+  if (result.status === 'error') {
+    console.log('TBA connection FAILED: ' + result.error);
+    return;
+  }
+
+  var teamCount = result.data ? result.data.length : 0;
+  console.log('TBA connection OK! Found ' + teamCount + ' teams for ' + TBA_CONFIG.EVENT_KEY);
+
+  // 建立所有 TBA 工作表
+  getOrCreateSheet(TBA_CONFIG.SHEET_TEAMS, TBA_HEADERS.TEAMS);
+  getOrCreateSheet(TBA_CONFIG.SHEET_MATCHES, TBA_HEADERS.MATCHES);
+  getOrCreateSheet(TBA_CONFIG.SHEET_SCORE_BREAKDOWN, ['matchKey', 'alliance', 'lastSynced']);
+  getOrCreateSheet(TBA_CONFIG.SHEET_RANKINGS, TBA_HEADERS.RANKINGS);
+  getOrCreateSheet(TBA_CONFIG.SHEET_OPRS, TBA_HEADERS.OPRS);
+  getOrCreateSheet(TBA_CONFIG.SHEET_ALLIANCES, TBA_HEADERS.ALLIANCES);
+  getOrCreateSheet(TBA_CONFIG.SHEET_AWARDS, TBA_HEADERS.AWARDS);
+
+  console.log('All 7 TBA sheets created/verified.');
+}
+
+/**
+ * 建立每 5 分鐘的自動觸發器
+ */
+function setupTBATrigger() {
+  // 先移除舊的
+  removeTBATrigger();
+
+  ScriptApp.newTrigger('syncAllTBA')
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+
+  console.log('TBA auto-sync trigger created (every 5 minutes).');
+}
+
+/**
+ * 移除 TBA 自動觸發器
+ */
+function removeTBATrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var removed = 0;
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'syncAllTBA') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    console.log('Removed ' + removed + ' TBA trigger(s).');
+  } else {
+    console.log('No TBA triggers found.');
+  }
+}
+
+/**
+ * 手動同步（尊重 ETag 快取）
+ */
+function manualSyncTBA() {
+  var result = syncAllTBA();
+  console.log('Manual sync complete.');
+  return result;
+}
+
+/**
+ * 強制同步（清除 ETag 快取後再同步）
+ */
+function forceSyncTBA() {
+  clearTBAETags();
+  var result = syncAllTBA();
+  console.log('Force sync complete.');
+  return result;
+}
+
+/**
+ * 清除所有 TBA ETag 快取
+ */
+function clearTBAETags() {
+  var props = PropertiesService.getScriptProperties();
+  var allProps = props.getProperties();
+  var cleared = 0;
+
+  for (var key in allProps) {
+    if (key.indexOf('tba_etag_') === 0) {
+      props.deleteProperty(key);
+      cleared++;
+    }
+  }
+
+  console.log('Cleared ' + cleared + ' TBA ETag(s).');
+}
+
+// ============================================
+// TBA doGet 處理函式
+// ============================================
+
+/**
+ * 處理 ?action=tbaStatus
+ */
+function handleTBAStatus() {
+  var props = PropertiesService.getScriptProperties();
+  var hasApiKey = !!props.getProperty('TBA_API_KEY');
+
+  // 檢查觸發器
+  var triggers = ScriptApp.getProjectTriggers();
+  var hasTrigger = false;
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'syncAllTBA') {
+      hasTrigger = true;
+      break;
+    }
+  }
+
+  // 檢查各工作表狀態
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = {};
+  var sheetNames = [
+    TBA_CONFIG.SHEET_TEAMS, TBA_CONFIG.SHEET_MATCHES,
+    TBA_CONFIG.SHEET_SCORE_BREAKDOWN, TBA_CONFIG.SHEET_RANKINGS,
+    TBA_CONFIG.SHEET_OPRS, TBA_CONFIG.SHEET_ALLIANCES, TBA_CONFIG.SHEET_AWARDS
+  ];
+
+  for (var j = 0; j < sheetNames.length; j++) {
+    var name = sheetNames[j];
+    var sheet = ss.getSheetByName(name);
+    sheets[name] = {
+      exists: !!sheet,
+      rows: sheet ? Math.max(0, sheet.getLastRow() - 1) : 0
+    };
+  }
+
+  return createJsonResponse({
+    success: true,
+    eventKey: TBA_CONFIG.EVENT_KEY,
+    apiKeyConfigured: hasApiKey,
+    triggerActive: hasTrigger,
+    sheets: sheets,
+    timestamp: new Date().toISOString()
+  });
+}
+
+/**
+ * 處理 ?action=tbaSync（透過 HTTP GET 觸發同步）
+ */
+function handleTBASync() {
+  try {
+    var result = syncAllTBA();
+    return createJsonResponse({
+      success: true,
+      message: 'TBA sync completed',
+      details: result
+    });
+  } catch (e) {
+    return createJsonResponse({
+      success: false,
+      error: e.message
+    });
+  }
+}
+function authorizeTBA() {
+  UrlFetchApp.fetch('https://www.thebluealliance.com/api/v3/status', {
+    headers: { 'X-TBA-Auth-Key': PropertiesService.getScriptProperties().getProperty('TBA_API_KEY') }
+  });
+  console.log('Authorization OK!');
 }

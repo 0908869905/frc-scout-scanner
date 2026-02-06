@@ -43,14 +43,14 @@ const RED_COLORS = ['#ef4444', '#f97316', '#f59e0b'];
 const BLUE_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6'];
 
 const MATCH_LEVEL_CODE: Record<string, string> = {
-  'Practice': 'P', 'Quals': 'Q', 'Playoffs': 'PO', 'Test': 'T',
+  'P': 'P', 'QM': 'Q', 'PO': 'PO', 'X': 'X',
 };
 
 const MATCH_LEVELS = [
-  { value: 'Practice', labelKey: 'practice' as const },
-  { value: 'Quals', labelKey: 'quals' as const },
-  { value: 'Playoffs', labelKey: 'playoff' as const },
-  { value: 'Test', labelKey: 'other' as const },
+  { value: 'P', labelKey: 'practice' as const },
+  { value: 'QM', labelKey: 'quals' as const },
+  { value: 'PO', labelKey: 'playoff' as const },
+  { value: 'X', labelKey: 'other' as const },
 ];
 
 // === Utilities ===
@@ -99,7 +99,7 @@ export function PathViewerPage() {
   // --- Query State ---
   const [queryMode, setQueryMode] = useState<'match' | 'team'>('match');
   const [queryEventCode, setQueryEventCode] = useState('');
-  const [queryMatchLevel, setQueryMatchLevel] = useState('Quals');
+  const [queryMatchLevel, setQueryMatchLevel] = useState('QM');
   const [queryMatchNumber, setQueryMatchNumber] = useState('');
   const [queryTeamNumber, setQueryTeamNumber] = useState('');
   const [queryLoading, setQueryLoading] = useState(false);
@@ -244,17 +244,9 @@ export function PathViewerPage() {
       if (p.id !== id) return p;
       const newFlipped = !p.flipped;
       let newAlliance: PathAlliance = p.alliance;
-      let newColor = p.color;
-      if (p.alliance === 'red') {
-        newAlliance = 'blue';
-        const idx = RED_COLORS.indexOf(p.color);
-        if (idx >= 0) newColor = BLUE_COLORS[idx % BLUE_COLORS.length];
-      } else if (p.alliance === 'blue') {
-        newAlliance = 'red';
-        const idx = BLUE_COLORS.indexOf(p.color);
-        if (idx >= 0) newColor = RED_COLORS[idx % RED_COLORS.length];
-      }
-      return { ...p, flipped: newFlipped, alliance: newAlliance, color: newColor };
+      if (p.alliance === 'red') newAlliance = 'blue';
+      else if (p.alliance === 'blue') newAlliance = 'red';
+      return { ...p, flipped: newFlipped, alliance: newAlliance };
     }));
   }, []);
 

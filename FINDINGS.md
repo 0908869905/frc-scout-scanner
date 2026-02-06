@@ -16,6 +16,12 @@
 8. [Pit Collect Path QR 整合](#pit-collect-path-qr-整合pit-path-類型)
 9. [Stale Closure 問題](#stale-closure-問題連續掃描多張-qr)
 10. [doGet Action 路由與 queryPaths API](#doget-action-路由與-querypaths-api)
+11. [多路徑同時播放動畫架構](#多路徑同時播放動畫架構)
+12. [路徑 ID 重複與動畫連動問題](#路徑-id-重複與動畫連動問題)
+13. [路徑來源標籤（Scouting PASS vs Pit Collect）](#路徑來源標籤scouting-pass-vs-pit-collect)
+14. [seedTestData() 測試資料函數](#seedtestdata-測試資料函數)
+15. [TBA (The Blue Alliance) 自動同步架構](#tba-the-blue-alliance-自動同步架構)
+16. [TBA ETag 快取陷阱（首次同步全部 not_modified）](#tba-etag-快取陷阱首次同步全部-not_modified)
 
 ---
 
@@ -824,6 +830,373 @@ Google Apps Script Web App 只有一個 URL 端點，doGet 和 doPost 各一個�
 
 ---
 
+## 多路徑同時播放動畫架構
+
+### 發現日期：2026-02-04
+
+**來源**：Path Viewer 從單路徑動畫升級為多路徑同時播放
+
+### 問題
+
+原本的動畫架構使用單一 `animatingPathId: string | null` 和 `animationProgress: number` 狀態，一次只能播放一條路徑的動畫。用戶希望能同時播放多條路徑做比較分析。
+
+### 解決方案
+
+將動畫狀態從單一值改為 `Record<string, number>` 字典結構：
+
+```typescript
+// 舊架構（單路徑）
+const [animatingPathId, setAnimatingPathId] = useState<string | null>(null);
+const [animationProgress, setAnimationProgress] = useState(0);
+
+// 新架構（多路徑）
+const [animationProgress, setAnimationProgress] = useState<Record<string, number>>({});
+```
+
+- key = 路徑 ID，value = 動畫進度（0 到座標點數量）
+- 每條路徑獨立管理自己的動畫進度
+- Play All 按鈕同時啟動所有路徑的動畫
+- 使用 `requestAnimationFrame` 統一驅動所有進行中的動畫
+
+### 選擇理由
+
+- `Record<string, number>` 比 `Map<string, number>` 更適合 React state（JSON 可序列化、immutable 更新更直覺）
+- 統一的 `requestAnimationFrame` 循環而非每條路徑各自一個，避免多個 RAF 的性能問題
+- Play All 只是批量設定所有路徑的初始進度值，不需要額外的邏輯
+
+---
+
+## 路徑 ID 重複與動畫連動問題
+
+### 發現日期：2026-02-04
+
+**問題**：同一隊伍在不同比賽等級（如 Quals 和 Playoff）的相同場次號碼（如 Match 5）會產生相同的路徑 ID，導致點擊一條路徑的動畫按鈕時，另一條路徑也同時開始播放。
+
+### 原因分析
+
+原本的 ID 生成邏輯只使用 `teamNumber-matchNumber`：
+
+```typescript
+// 舊 ID 生成
+const id = `${teamNumber}-${matchNumber}`;
+// Quals Match 5 Team 6998 → "6998-5"
+// Playoff Match 5 Team 6998 → "6998-5"（重複！）
+```
+
+當兩條路徑共用同一個 ID 時，`animationProgress["6998-5"]` 會同時控制兩條路徑的動畫。
+
+### 解決方案
+
+在 ID 中加入 `matchLevel`：
+
+```typescript
+// 新 ID 生成
+const id = `${teamNumber}-${matchLevel}-${matchNumber}`;
+// Quals Match 5 Team 6998 → "6998-Quals-5"
+// Playoff Match 5 Team 6998 → "6998-Playoff-5"（唯一）
+```
+
+### 關鍵教訓
+
+ID 生成必須考慮所有可能影響唯一性的維度。在 FRC 比賽數據中，`teamNumber + matchNumber` 不足以唯一標識一條路徑，因為同一隊伍可能在不同等級（Quals/Playoff/Finals）的相同場次號碼中有不同的路徑。同時也需要配合修正後端的 dedup 邏輯（Code.gs queryPathsByTeam），不同 matchLevel 的同 matchNumber 不應被視為重複。
+
+---
+
+## getMatchKey 重複掃描誤判問題
+
+### 發現日期：2026-02-05
+
+**問題**：掃描 QR code 時，不同比賽等級（Quals/Playoff）的相同場次號會被誤判為重複掃描。例如 Quals #5 和 Playoff #5 產生相同的 matchKey，系統誤認為是重複資料。
+
+### 原因分析
+
+`getMatchKey` 函數只使用三個欄位組合 key：
+
+```typescript
+// 舊 key 生成
+function getMatchKey(data: DecodedData): string {
+  return `${data.eventCode}_${data.matchNumber}_${data.teamNumber}`;
+}
+// Quals #5 Team 6998 → "2026MSLR_5_6998"
+// Playoff #5 Team 6998 → "2026MSLR_5_6998"（重複！）
+```
+
+缺少 `matchLevel` 維度導致不同比賽等級的資料被視為同一筆。
+
+### 解決方案
+
+在 key 中加入 `matchLevel`：
+
+```typescript
+// 新 key 生成
+function getMatchKey(data: DecodedData): string {
+  return `${data.eventCode}_${data.matchLevel}_${data.matchNumber}_${data.teamNumber}`;
+}
+// Quals #5 Team 6998 → "2026MSLR_Quals_5_6998"
+// Playoff #5 Team 6998 → "2026MSLR_Playoff_5_6998"（唯一）
+```
+
+### 選擇理由
+
+- `matchLevel` 是 FRC 比賽數據中區分資料唯一性的必要維度
+- 與 2026-02-04 的路徑 ID 修復邏輯一致，保持整體架構的一致性
+- 最小改動，只修改一個函數
+
+### 關鍵教訓
+
+在 FRC 比賽數據中，唯一性 key 必須包含 `matchLevel`。單純的 `eventCode + matchNumber + teamNumber` 不足以區分不同比賽等級的資料。這是繼路徑 ID 問題後的第二次提醒：**任何涉及「唯一標識」的邏輯都需要考慮 matchLevel 維度**。
+
+---
+
+## 路徑來源標籤（Scouting PASS vs Pit Collect）
+
+### 發現日期：2026-02-04
+
+**來源**：Path Viewer 查詢結果需要區分路徑資料來自 Scouting PASS 還是 Pit Collect
+
+### 問題
+
+後端 queryPaths API 從多個工作表（Match Data、Path Data、Pit Scouting）查詢路徑，但前端無法分辨每條路徑的來源。用戶需要知道路徑是來自比賽中即時記錄的（Scouting PASS）還是 pit walk 時收集的（Pit Collect）。
+
+### 解決方案
+
+#### 後端（Code.gs）
+
+在 queryPathsByTeam 回傳結果中加入 `source` 欄位：
+
+```javascript
+// Path Data 工作表 → source: "path"（Scouting PASS）
+// Match Data 工作表 → source: "match"（Scouting PASS）
+// Pit Scouting 工作表 → source: "pit"（Pit Collect）
+```
+
+#### 前端（PathViewerPage.tsx）
+
+根據 `source` 欄位顯示標籤：
+- `source === "pit"` → 顯示 "Pit" 標籤（橙色）
+- 其他（"path" / "match"） → 顯示 "SP" 標籤（綠色）
+
+```typescript
+// sheets.ts 回應類型
+interface PathResult {
+  teamNumber: string;
+  alliance: string;
+  autoPath: string;
+  source?: string;  // "path" | "match" | "pit"
+}
+```
+
+### 選擇理由
+
+- "SP" 代表 Scouting PASS（來源 app 名稱的縮寫），比 "Match" 更簡潔
+- 用顏色（綠/橙）搭配文字標籤，雙重視覺提示
+- source 欄位設為 optional（`?`）以維持向後相容
+
+---
+
+## seedTestData() 測試資料函數
+
+### 發現日期：2026-02-04
+
+**來源**：Path Viewer 開發過程中需要穩定的測試資料
+
+### 用途
+
+在 Code.gs 中新增 `seedTestData()` 函數，可在 Google Apps Script 編輯器中手動執行，批量寫入測試資料到各工作表。
+
+### 包含資料
+
+- **12 筆 Match Data**：涵蓋 Quals（場次 1-8）和 Playoff（場次 1-4），6 支隊伍（6998/254/1678/118/2056/330）
+- **4 筆 Path Data**：4 條自動路徑，含座標和聯盟資訊
+- **5 筆 Pit Scouting**：5 支隊伍的 pit 資料
+
+### 注意事項
+
+- 執行前不會清除現有資料，會 append 到現有工作表
+- 如果工作表不存在，需要先執行 `initializeSheets()`
+- 測試資料使用 eventCode "TEST01" 方便篩選和清理
+
+---
+
+## TBA (The Blue Alliance) 自動同步架構
+
+### 發現日期：2026-02-04
+
+**來源**：整合 TBA API v3 到 Google Apps Script，自動同步賽事資料
+
+### 問題
+
+需要在 Google Apps Script 中整合 TBA API，自動同步賽事資料（Teams, Matches, Rankings 等），但面臨幾個挑戰：
+1. Apps Script 有 6 分鐘執行時間限制
+2. TBA API 有速率限制，不應每次都全量拉取
+3. Score Breakdown 欄位每年不同（依遊戲規則變動），不能硬編碼
+4. UrlFetchApp 和 ScriptApp 需要額外的 OAuth scope 授權
+
+### 解決方案
+
+#### 1. ETag 快取機制
+
+TBA API 支援 HTTP ETag 條件請求，用 `If-None-Match` header 可以避免重複下載未變更的資料：
+
+```javascript
+function fetchTBA(endpoint) {
+  var cacheKey = 'tba_etag_' + endpoint.replace(/\//g, '_');
+  var cachedETag = PropertiesService.getScriptProperties().getProperty(cacheKey);
+
+  var options = {
+    headers: { 'X-TBA-Auth-Key': apiKey },
+    muteHttpExceptions: true
+  };
+  if (cachedETag) {
+    options.headers['If-None-Match'] = cachedETag;
+  }
+
+  var response = UrlFetchApp.fetch(url, options);
+  if (response.getResponseCode() === 304) {
+    return { status: 'not_modified', data: null };
+  }
+  // 200: 更新 ETag 快取，回傳新資料
+  var newETag = response.getHeaders()['ETag'];
+  if (newETag) {
+    PropertiesService.getScriptProperties().setProperty(cacheKey, newETag);
+  }
+  return { status: 'updated', data: JSON.parse(response.getContentText()) };
+}
+```
+
+**選擇理由**：ETag 快取讓定時觸發器（如每 30 分鐘）能高效運作，若資料未變更則 304 直接跳過，節省 API 配額和執行時間。
+
+#### 2. Score Breakdown 動態 Headers
+
+FRC 每年遊戲規則不同，Score Breakdown 的欄位（如 autoReef, teleopCoral 等）每年都會變。使用動態 headers 而非硬編碼：
+
+```javascript
+function syncTBAScoreBreakdown(matchesData) {
+  // 從第一筆資料自動提取所有欄位名稱
+  var allKeys = {};
+  matchesData.forEach(function(match) {
+    ['red', 'blue'].forEach(function(color) {
+      var bd = match.score_breakdown[color];
+      Object.keys(bd).forEach(function(k) { allKeys[k] = true; });
+    });
+  });
+  var breakdownKeys = Object.keys(allKeys).sort();
+  var headers = ['matchKey', 'alliance'].concat(breakdownKeys);
+  // 寫入...
+}
+```
+
+**選擇理由**：避免每年手動更新 schema，任何新賽季的 Score Breakdown 都能自動處理。
+
+#### 3. Matches + Score Breakdown 共用 API Call
+
+TBA 的 `/event/{key}/matches` endpoint 已包含 `score_breakdown` 欄位，因此 Matches 和 Score Breakdown 可以共用同一次 API call：
+
+```javascript
+function syncTBAMatches(eventKey) {
+  var result = fetchTBA('/event/' + eventKey + '/matches');
+  // 寫入 TBA Matches 工作表
+  // 同時呼叫 syncTBAScoreBreakdown(result.data) 寫入 Score Breakdown
+}
+```
+
+**選擇理由**：減少 API call 次數，避免速率限制問題，同時減少執行時間。
+
+#### 4. syncAllTBA 時間守衛
+
+Apps Script 有 6 分鐘（360 秒）執行限制。使用時間守衛確保不會超時：
+
+```javascript
+function syncAllTBA() {
+  var startTime = new Date().getTime();
+  var TIME_LIMIT = 280000; // 4分40秒，預留 buffer
+
+  var tasks = [syncTBATeams, syncTBAMatches, syncTBARankings, ...];
+  for (var i = 0; i < tasks.length; i++) {
+    if (new Date().getTime() - startTime > TIME_LIMIT) {
+      Logger.log('Time guard triggered, stopping.');
+      break;
+    }
+    tasks[i](eventKey);
+  }
+}
+```
+
+**選擇理由**：280 秒（4 分 40 秒）留了 80 秒的 buffer，確保即使最後一個同步函式需要較長時間也不會超過限制。
+
+#### 5. UrlFetchApp / ScriptApp 權限授權
+
+Google Apps Script 的 `UrlFetchApp.fetch()` 和 `ScriptApp.newTrigger()` 需要額外的 OAuth scope。必須在 appsscript.json 中明確聲明：
+
+```json
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ]
+}
+```
+
+並執行 `authorizeTBA()` 輔助函式觸發授權提示。
+
+**關鍵教訓**：即使 Apps Script 編輯器中手動執行函式會自動提示授權，部署為 Web App 時不會自動提示。必須預先通過手動執行來完成授權，且 appsscript.json 必須包含所有需要的 scope。
+
+#### 6. clear-and-replace 寫入策略
+
+每次同步時先清空工作表（保留 header），再寫入全部新資料：
+
+```javascript
+var sheet = getOrCreateSheet('TBA Teams', headers);
+if (sheet.getLastRow() > 1) {
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
+}
+// 寫入全部資料...
+```
+
+**選擇理由**：比 upsert（逐筆比對更新）簡單可靠，避免資料不一致。TBA 資料量不大（通常 < 200 筆），全量重寫的性能代價可忽略。
+
+### 驗證結果
+
+2025mslr 賽事完整同步：
+- 37 teams, 77 matches, 154 score breakdowns, 37 rankings, 37 OPRs, 8 alliances, 25 awards
+- 總耗時 6.3 秒（遠低於 280 秒時間守衛）
+- ETag 快取後二次同步：全部 not_modified，接近 0 秒
+
+---
+
+## TBA ETag 快取陷阱（首次同步全部 not_modified）
+
+### 發現日期：2026-02-04
+
+**問題**：第一次執行 `manualSyncTBA()` 時，所有 7 個同步函式都回傳 `not_modified`，沒有任何資料被寫入。
+
+### 原因分析
+
+開發過程中曾手動測試各個 sync 函式（如直接執行 `syncTBATeams('2025mslr')`），這些測試執行已經將 ETag 儲存到 ScriptProperties。當後來通過 `manualSyncTBA()` 統一執行時，所有 endpoint 都已有 cached ETag，TBA API 回傳 304 not_modified。
+
+```
+開發時：手動執行 syncTBATeams → 200 OK → 儲存 ETag
+後來：manualSyncTBA → syncTBATeams 帶 If-None-Match → 304 not_modified → 跳過！
+```
+
+### 解決方案
+
+新增 `forceSyncTBA()` 函式，先呼叫 `clearTBAETags()` 清除所有快取的 ETag，再執行 `syncAllTBA()`：
+
+```javascript
+function forceSyncTBA() {
+  clearTBAETags();
+  syncAllTBA();
+}
+```
+
+### 關鍵教訓
+
+ETag 快取是「隱形狀態」，儲存在 ScriptProperties 中不容易直覺觀察。當開發階段的手動測試產生了快取，後續的整合測試可能被快取影響而看不到預期結果。提供 `forceSyncTBA` 和 `clearTBAETags` 作為「清除快取」的工具是必要的。
+
+---
+
 ## 參考資源
 
 - [SCANNER_INTEGRATION.md](./SCANNER_INTEGRATION.md) - 整合文件
@@ -834,4 +1207,4 @@ Google Apps Script Web App 只有一個 URL 端點，doGet 和 doPost 各一個�
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-02-04*
+*最後更新：2026-02-05 (matchKey 重複掃描修復)*

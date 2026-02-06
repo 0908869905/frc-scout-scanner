@@ -223,7 +223,128 @@ Google Apps Script 部署為網頁應用程式時，會自動處理 CORS。如�
 
 ---
 
-## 聯絡
+## TBA (The Blue Alliance) 自動同步
 
-- **Team**: FRC 6998
-- **Scouting App**: https://frc-ten.vercel.app
+自動從 The Blue Alliance 抓取賽事資料同步到 Google Sheets。使用 ETag 快取機制，只在 TBA 有新資料時才更新，避免浪費 API 額度。
+
+### 同步的工作表（7 個）
+
+| 工作表 | 內容 | 排序 |
+|--------|------|------|
+| TBA Teams | 隊伍資訊（號碼、暱稱、城市、國家、創隊年） | 隊伍號碼 |
+| TBA Matches | 比賽結果（紅藍方隊伍、比分、勝方） | 比賽順序 |
+| TBA Score Breakdown | 詳細得分拆解（欄位依遊戲規則自動產生） | 比賽 + 聯盟 |
+| TBA Rankings | 排名（勝負、排序分數） | 排名 |
+| TBA OPRs | 進攻/防守效率值（OPR/DPR/CCWM） | OPR 高到低 |
+| TBA Alliances | 聯盟選秀結果 | 聯盟序號 |
+| TBA Awards | 獎項（獲獎隊伍/個人） | 獎項名稱 |
+
+### 設定步驟
+
+#### 前置作業
+
+1. 前往 https://www.thebluealliance.com/account 註冊/登入
+2. 在頁面下方「Read API Keys」區域，新增一個 API Key
+3. 複製產生的 Key（一長串英數字）
+
+#### 首次設定（依序執行）
+
+在 Apps Script 編輯器中：
+
+**Step 1 — 設定 appsscript.json 權限**
+
+1. 左側點擊齒輪圖示（專案設定）
+2. 勾選「在編輯器中顯示 appsscript.json 資訊清單檔案」
+3. 開啟 `appsscript.json`，確保 `oauthScopes` 包含以下三個權限：
+
+```json
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ]
+}
+```
+
+**Step 2 — 儲存 API Key**
+
+1. 在 Code.gs 最下方暫時加入一行（替換成你的 Key）：
+```javascript
+// 執行後立即刪除這行！
+setTBAApiKey('你的_TBA_API_Key_貼在這裡');
+```
+2. 在上方函式下拉選單選擇 `setTBAApiKey`（或任意函式），點「執行」
+3. 若彈出授權對話框 → 審查權限 → 允許
+4. 確認 log 顯示 `TBA API key saved successfully.`
+5. **刪除剛才加的那行程式碼**（Key 已安全存入，不需要留在程式碼中）
+
+**Step 3 — 授權外部請求**
+
+1. 在函式下拉選單選擇 `authorizeTBA`
+2. 點「執行」
+3. 若彈出授權對話框 → 審查權限 → 允許
+4. 確認 log 顯示 `Authorization OK!`
+
+**Step 4 — 測試連線 + 建立工作表**
+
+1. 在函式下拉選單選擇 `setupTBAConfig`
+2. 點「執行」
+3. 確認 log 顯示：
+   - `TBA connection OK! Found XX teams for 2025mslr`
+   - `All 7 TBA sheets created/verified.`
+
+**Step 5 — 首次同步資料**
+
+1. 在函式下拉選單選擇 `forceSyncTBA`
+2. 點「執行」
+3. 確認所有 7 個工作表都顯示 `ok` 和行數
+
+**Step 6 — 啟動自動同步**
+
+1. 在函式下拉選單選擇 `setupTBATrigger`
+2. 點「執行」
+3. 確認 log 顯示 `TBA auto-sync trigger created (every 5 minutes).`
+
+設定完成！系統會每 5 分鐘自動檢查 TBA 是否有新資料。
+
+### 日常操作
+
+| 操作 | 函式 | 說明 |
+|------|------|------|
+| 手動同步 | `manualSyncTBA` | 尊重 ETag 快取，無變更不寫入 |
+| 強制同步 | `forceSyncTBA` | 清除快取，重新抓取所有資料 |
+| 停止自動同步 | `removeTBATrigger` | 移除 5 分鐘觸發器 |
+| 重啟自動同步 | `setupTBATrigger` | 重新建立 5 分鐘觸發器 |
+| 查看狀態（網頁） | `?action=tbaStatus` | 在 Web App URL 後加此參數 |
+
+### 更換賽事
+
+預設賽事為 `2025mslr`。若需更換：
+
+1. 在 Code.gs 中找到 `TBA_CONFIG` 區塊
+2. 修改 `EVENT_KEY` 的值（例如改為 `2025cmptx`）
+3. 儲存並重新部署
+4. 執行 `forceSyncTBA` 抓取新賽事資料
+
+賽事代碼格式為 `年份` + `賽事縮寫`，可在 TBA 網站查詢。
+
+### 常見問題
+
+**Q: 所有工作表都顯示 not_modified？**
+表示 TBA 資料自上次同步後沒有變化，這是正常的。如需強制重新抓取，執行 `forceSyncTBA`。
+
+**Q: 出現 UrlFetchApp 權限錯誤？**
+執行 `authorizeTBA` 函式觸發授權對話框，允許權限後重試。
+
+**Q: 出現 ScriptApp 權限錯誤？**
+在 `appsscript.json` 中確認有 `script.scriptapp` scope，儲存後重新執行。
+
+**Q: Score Breakdown 欄位很多/很少？**
+這是正常的。欄位由 TBA 的遊戲規則決定，每年不同。系統會自動偵測並建立所有欄位。
+
+**Q: 同步超時？**
+正常同步約 5-8 秒。系統內建 4 分 40 秒的安全限制，會在超時前自動停止。若經常超時，可能是網路問題。
+
+---
+
