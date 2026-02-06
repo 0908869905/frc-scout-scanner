@@ -43,14 +43,14 @@ const RED_COLORS = ['#ef4444', '#f97316', '#f59e0b'];
 const BLUE_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6'];
 
 const MATCH_LEVEL_CODE: Record<string, string> = {
-  'P': 'P', 'QM': 'Q', 'PO': 'M', 'X': 'X',
+  'Practice': 'P', 'Quals': 'Q', 'Playoffs': 'PO', 'Test': 'T',
 };
 
 const MATCH_LEVELS = [
-  { value: 'P', labelKey: 'practice' as const },
-  { value: 'QM', labelKey: 'quals' as const },
-  { value: 'PO', labelKey: 'playoff' as const },
-  { value: 'X', labelKey: 'other' as const },
+  { value: 'Practice', labelKey: 'practice' as const },
+  { value: 'Quals', labelKey: 'quals' as const },
+  { value: 'Playoffs', labelKey: 'playoff' as const },
+  { value: 'Test', labelKey: 'other' as const },
 ];
 
 // === Utilities ===
@@ -99,7 +99,7 @@ export function PathViewerPage() {
   // --- Query State ---
   const [queryMode, setQueryMode] = useState<'match' | 'team'>('match');
   const [queryEventCode, setQueryEventCode] = useState('');
-  const [queryMatchLevel, setQueryMatchLevel] = useState('QM');
+  const [queryMatchLevel, setQueryMatchLevel] = useState('Quals');
   const [queryMatchNumber, setQueryMatchNumber] = useState('');
   const [queryTeamNumber, setQueryTeamNumber] = useState('');
   const [queryLoading, setQueryLoading] = useState(false);
