@@ -348,3 +348,50 @@ setTBAApiKey('你的_TBA_API_Key_貼在這裡');
 
 ---
 
+## OPR Analysis（進攻效率值計算）
+
+OPR（Offensive Power Rating）用最小平方法計算每支隊伍在每場比賽中的預測貢獻分數。本功能會在 Google Sheets 中建立「OPR Analysis」分頁，包含三個區塊：
+
+- **Section A（A-L 欄）**：比賽得分表（比賽組成 + 實際/預測分數）
+- **Section B（N-R 欄）**：OPR 排名（依 OPR 值降序）
+- **Section C（T-Z 欄）**：隊伍查詢（輸入隊號，自動顯示 OPR、排名、比賽紀錄）
+
+### 使用方式
+
+#### 方式一：有 TBA 資料（推薦）
+
+1. 確認已執行 TBA 同步（`syncAllTBA` 或 `forceSyncTBA`），TBA Matches 工作表有比賽資料
+2. 在 Apps Script 編輯器中執行 `buildOPRSheet`
+   - 自動從 TBA Matches 帶入比賽組成和分數
+3. 執行 `calculateOPR`
+   - 計算 OPR 排名 + 預測分數
+4. 在「OPR Analysis」分頁的 U2 格輸入隊號，查看該隊資訊
+
+#### 方式二：無 TBA 資料（使用 Scouting 資料）
+
+1. 確認已上傳 scouting 比賽資料到 Match Data 工作表
+2. 在 Apps Script 編輯器中執行 `buildOPRSheet`
+   - 自動從 Match Data 建立比賽組成（分數留空）
+3. **手動填入** H 欄（redScore）和 I 欄（blueScore）的實際分數
+4. 執行 `calculateOPR`
+
+### 函式說明
+
+| 函式 | 說明 |
+|------|------|
+| `buildOPRSheet` | 建立/更新 OPR Analysis 分頁，填入比賽資料 |
+| `calculateOPR` | 讀取分數，計算 OPR 排名 + 預測分數 |
+
+### 常見問題
+
+**Q: 出現 "Matrix is singular" 錯誤？**
+表示資料不足以計算 OPR。需要更多比賽場次，且隊伍組合要夠多樣化（不能都是同樣的隊伍組合）。
+
+**Q: 部分場次沒有分數？**
+`calculateOPR` 會自動跳過無分數的場次，只使用有分數的場次計算。但跳過太多場可能導致結果不準確。
+
+**Q: OPR 值和 TBA 官方 OPR 不一樣？**
+本功能使用相同的最小平方法，但 TBA 可能使用額外的正規化或不同的資料範圍。小幅差異是正常的。
+
+---
+

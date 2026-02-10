@@ -32,9 +32,11 @@ Scouting App → QR Code (LZ-String Base64 壓縮) → Scanner App → 解碼 �
 
 doGet() 支援 `action` 參數路由：
 - **無 action**：回傳 API 狀態 `{ success: true, message: 'API is running' }`
-- **`?action=queryPaths&eventCode=...&matchLevel=...&matchNumber=...`**：查詢指定比賽/隊伍的路徑資料（從 Match Data、Path Data、Pit Scouting 工作表），回傳 `{ success, paths: [...], query: {...} }`，每條路徑含 `source` 欄位（"path"/"match"/"pit"）標示來源
+- **`?action=queryPaths&eventCode=...&matchLevel=...&matchNumber=...`**：查詢指定比賽/隊伍的路徑資料（從 Match Data、Path Data、Pit Scouting 工作表），回傳 `{ success, paths: [...], query: {...} }`，每條路徑含 `source` 欄位（"path"/"match"/"pit"）標示來源。matchLevel 值為縮寫：P/QM/PO/X
 - **`?action=tbaStatus`**：回傳 TBA 同步狀態（API key、trigger、各工作表行數）
 - **`?action=tbaSync`**：透過 HTTP GET 觸發 TBA 同步
+- **`?action=debug`**：回傳所有工作表概況（名稱、行數、標頭、樣本資料），用於線上診斷
+- **`?action=fixHeaders`**：檢查所有已知工作表的標頭行，若為空自動修復為正確的 schema headers
 
 輔助函數：
 - **`seedTestData()`**：在 Apps Script 編輯器中手動執行，寫入測試資料（12 筆 Match + 4 筆 Path + 5 筆 Pit）
@@ -61,6 +63,21 @@ doPost() 接收資料上傳（match/path/pit/pit-external/batch）
 - Score Breakdown headers 動態產生（依遊戲規則而異）
 - 寫入策略：clear-and-replace（清除後批次寫入）
 - 時間守衛：追蹤執行時間，4分40秒前停止避免超時
+
+### OPR Analysis（進攻效率值計算）
+
+用最小平方法計算每支隊伍的 OPR（Offensive Power Rating）。建立「OPR Analysis」工作表，含三區塊：
+
+**工作表佈局**：
+- **Section A（A-L 欄）**：比賽得分表（matchId、6 支隊伍、紅藍得分、紅藍預測、來源）
+- **Section B（N-R 欄）**：OPR 排名（rank、teamNumber、opr、matchesPlayed、lastCalculated）
+- **Section C（T-Z 欄）**：隊伍查詢（U2 輸入隊號，自動 VLOOKUP/FILTER）
+
+**執行函數**：
+1. `buildOPRSheet()` — 建立分頁，優先從 TBA Matches 帶入（含分數），無 TBA 時從 scouting Match Data 建立（分數留空）
+2. `calculateOPR()` — 讀取分數，矩陣運算 `x = (A^T·A)^(-1) · A^T·b`，寫入排名 + 預測分數
+
+**數學原理**：每場比賽 → 2 行（紅/藍），每隊一欄（在場=1），最小平方法求解各隊 OPR
 
 ### 關鍵依賴
 
@@ -125,7 +142,7 @@ frc-scout-scanner/
 │       ├── SettingsPage.tsx
 │       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢、多路徑同時播放、來源標籤 SP/Pit、全部顯示/隱藏）
 ├── google-apps-script/
-│   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳 + TBA 同步）
+│   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳 + TBA 同步 + OPR Analysis）
 │   └── README.md          # 部署指南
 ├── CLAUDE.md              # Claude Code 指令（此檔案）
 ├── PROGRESS.md            # 開發進度追蹤
@@ -339,7 +356,9 @@ function MyComponent() {
 4. **空值格式**：空字串或 null 顯示為 "None"
 5. **React StrictMode**：會導致相機雙重初始化，已用 useRef 解決
 6. **Windows npm**：使用 PowerShell 執行 npm 命令更穩定
+7. **matchLevel 值是縮寫**：Scouting PASS 存入的是 'P'（Practice）、'QM'（Quals）、'PO'（Playoff）、'X'（Exhibition），不是全名
+8. **getOrCreateSheet 防禦性標頭**：已加入標頭檢查，若工作表存在但標頭全空會自動修復，防止查詢因 indexOf 回傳 -1 而靜默失敗
 
 ---
 
-*最後更新：2026-02-05*
+*最後更新：2026-02-10*

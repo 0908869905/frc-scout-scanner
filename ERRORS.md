@@ -56,6 +56,8 @@
 | E015 | Apps Script | ScriptApp 權限不足（缺少 scriptapp scope） | 2026-02-04 | 已解決 |
 | E016 | Apps Script | ETag 快取導致首次 manualSyncTBA 全部 not_modified | 2026-02-04 | 已解決 |
 | E017 | Logic | getMatchKey 缺少 matchLevel 導致不同比賽等級被誤判為重複 | 2026-02-05 | 已解決 |
+| E018 | Apps Script | Google Sheets 標頭行全空導致 queryPaths 回傳 0 筆 | 2026-02-06 | 已解決 |
+| E019 | UI | matchLevel dropdown 值與實際 QR 資料不一致 | 2026-02-06 | 已解決 |
 
 ---
 
@@ -706,6 +708,87 @@ function getMatchKey(data: DecodedData): string {
 
 ---
 
+### [E018] Google Sheets 標頭行全空導致 queryPaths 回傳 0 筆
+
+**日期**：2026-02-06
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Path Viewer 查詢任何比賽都回傳 0 筆路徑，直接呼叫 API 也是 0 筆
+queryPaths?eventCode=2026MSLR&matchLevel=QM&matchNumber=1 → paths: []
+```
+
+**根本原因**：
+- Match Data 工作表的第一行（標頭行）全是空字串 `["", "", "", ...]`
+- 所有依賴 `headers.indexOf('eventCode')` 的查詢邏輯回傳 -1
+- `row[-1]` 回傳 `undefined`，條件比對永遠失敗但不報錯（靜默失敗）
+- 標頭可能在工作表重建或手動編輯時被清空
+
+**解決方案**：
+1. **即時修復**：新增 `?action=fixHeaders` API 端點，一鍵修復所有工作表的空白標頭
+2. **診斷工具**：新增 `?action=debug` API 端點，回傳工作表概況和樣本資料
+3. **長期防禦**：修改 `getOrCreateSheet` 函數，在工作表已存在時也檢查標頭是否為空，空白時自動修復
+
+```javascript
+// getOrCreateSheet 防禦性標頭檢查
+if (sheet) {
+  var existingHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  var allEmpty = existingHeaders.every(function(h) { return h === ''; });
+  if (allEmpty) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  return sheet;
+}
+```
+
+**預防措施**：
+- 不要假設 Google Sheets 標頭永遠正確，所有查詢應有防禦性檢查
+- `indexOf` 回傳 -1 是靜默失敗，考慮加入 -1 檢查或使用更安全的查找方式
+- 提供線上診斷端點（debug），加速問題排查
+
+**相關檔案**：
+- google-apps-script/Code.gs
+
+---
+
+### [E019] matchLevel Dropdown 值與實際 QR 資料不一致
+
+**日期**：2026-02-06
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+即使標頭修復後，使用 'Quals' 作為 matchLevel 查詢仍回傳 0 筆
+使用 'QM' 則查詢成功
+```
+
+**根本原因**：
+- PathViewerPage 的 matchLevel dropdown 值曾被修改為 'Quals', 'Playoff' 等全名
+- 但 Scouting PASS app 實際存入 Google Sheets 的值是 'P', 'QM', 'PO', 'X' 縮寫
+- 前端送出 'Quals'，後端比對 'QM'，永遠不匹配
+
+**解決方案**：
+```typescript
+// 還原 matchLevel dropdown 值為實際 QR 資料中的縮寫
+<option value="P">Practice</option>
+<option value="QM">Quals</option>
+<option value="PO">Playoff</option>
+<option value="X">Exhibition</option>
+```
+
+**預防措施**：
+- 前端 dropdown 值必須與上游 Scouting App 實際產出的值完全一致
+- 修改前應先檢查 Google Sheets 中的實際資料（可用 debug 端點）
+- 不能想當然地假設值的格式，要從實際資料中確認
+
+**相關檔案**：
+- src/pages/PathViewerPage.tsx
+
+---
+
 ## 常見錯誤模式
 
 ### 1. TypeScript 類型錯誤
@@ -822,11 +905,11 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 17 |
-| 已解決 | 17 |
+| 總錯誤數 | 19 |
+| 已解決 | 19 |
 | 進行中 | 0 |
-| 高嚴重度 | 9 |
-| 中嚴重度 | 6 |
+| 高嚴重度 | 10 |
+| 中嚴重度 | 7 |
 | 低嚴重度 | 2 |
 
 ---
@@ -840,4 +923,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-02-05*
+*最後更新：2026-02-06*

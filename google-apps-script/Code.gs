@@ -2101,3 +2101,682 @@ function authorizeTBA() {
   });
   console.log('Authorization OK!');
 }
+
+// ============================================
+// OPR Analysis 功能
+// ============================================
+
+/**
+ * OPR Analysis 工作表名稱
+ */
+var OPR_SHEET_NAME = 'OPR Analysis';
+
+/**
+ * Section A 標頭（欄 A-L）：比賽得分表
+ */
+var OPR_HEADERS_A = [
+  'matchId', 'redTeam1', 'redTeam2', 'redTeam3',
+  'blueTeam1', 'blueTeam2', 'blueTeam3',
+  'redScore', 'blueScore', 'redPredicted', 'bluePredicted', 'source'
+];
+
+/**
+ * Section B 標頭（欄 N-R）：OPR 排名
+ */
+var OPR_HEADERS_B = ['rank', 'teamNumber', 'opr', 'matchesPlayed', 'lastCalculated'];
+
+// ============================================
+// 矩陣運算（純數學，無副作用）
+// ============================================
+
+/**
+ * 矩陣轉置
+ * @param {number[][]} M - 輸入矩陣
+ * @returns {number[][]} 轉置後的矩陣
+ */
+function matTranspose(M) {
+  var rows = M.length;
+  var cols = M[0].length;
+  var T = [];
+  for (var j = 0; j < cols; j++) {
+    T[j] = [];
+    for (var i = 0; i < rows; i++) {
+      T[j][i] = M[i][j];
+    }
+  }
+  return T;
+}
+
+/**
+ * 矩陣乘法 A × B
+ * @param {number[][]} A - 左矩陣 (m×n)
+ * @param {number[][]} B - 右矩陣 (n×p)
+ * @returns {number[][]} 結果矩陣 (m×p)
+ */
+function matMultiply(A, B) {
+  var m = A.length;
+  var n = A[0].length;
+  var p = B[0].length;
+  var C = [];
+  for (var i = 0; i < m; i++) {
+    C[i] = [];
+    for (var j = 0; j < p; j++) {
+      var sum = 0;
+      for (var k = 0; k < n; k++) {
+        sum += A[i][k] * B[k][j];
+      }
+      C[i][j] = sum;
+    }
+  }
+  return C;
+}
+
+/**
+ * 矩陣求逆（Gauss-Jordan 消去法，含 partial pivoting）
+ * @param {number[][]} M - 方陣
+ * @returns {number[][]|null} 逆矩陣，不可逆時回傳 null
+ */
+function matInverse(M) {
+  var n = M.length;
+  // 建立增廣矩陣 [M | I]
+  var aug = [];
+  for (var i = 0; i < n; i++) {
+    aug[i] = [];
+    for (var j = 0; j < n; j++) {
+      aug[i][j] = M[i][j];
+    }
+    for (var j2 = 0; j2 < n; j2++) {
+      aug[i][n + j2] = (i === j2) ? 1 : 0;
+    }
+  }
+
+  for (var col = 0; col < n; col++) {
+    // Partial pivoting: 找最大絕對值的列
+    var maxVal = Math.abs(aug[col][col]);
+    var maxRow = col;
+    for (var r = col + 1; r < n; r++) {
+      if (Math.abs(aug[r][col]) > maxVal) {
+        maxVal = Math.abs(aug[r][col]);
+        maxRow = r;
+      }
+    }
+    if (maxVal < 1e-10) return null; // 矩陣不可逆
+
+    // 交換列
+    if (maxRow !== col) {
+      var tmp = aug[col];
+      aug[col] = aug[maxRow];
+      aug[maxRow] = tmp;
+    }
+
+    // 消去
+    var pivot = aug[col][col];
+    for (var j3 = 0; j3 < 2 * n; j3++) {
+      aug[col][j3] /= pivot;
+    }
+    for (var r2 = 0; r2 < n; r2++) {
+      if (r2 === col) continue;
+      var factor = aug[r2][col];
+      for (var j4 = 0; j4 < 2 * n; j4++) {
+        aug[r2][j4] -= factor * aug[col][j4];
+      }
+    }
+  }
+
+  // 提取逆矩陣
+  var inv = [];
+  for (var i2 = 0; i2 < n; i2++) {
+    inv[i2] = [];
+    for (var j5 = 0; j5 < n; j5++) {
+      inv[i2][j5] = aug[i2][n + j5];
+    }
+  }
+  return inv;
+}
+
+/**
+ * 用最小平方法求解 OPR: x = (A^T·A)^(-1) · A^T·b
+ * @param {number[][]} A - 聯盟矩陣（每行 = 一場聯盟，每列 = 一支隊伍，在場=1）
+ * @param {number[]} b - 分數向量
+ * @returns {number[]|null} OPR 向量，或 null（矩陣不可逆）
+ */
+function solveOPR(A, b) {
+  var At = matTranspose(A);
+  var AtA = matMultiply(At, A);
+  var AtAinv = matInverse(AtA);
+  if (!AtAinv) return null;
+
+  // 將 b 轉為列向量
+  var bCol = [];
+  for (var i = 0; i < b.length; i++) {
+    bCol[i] = [b[i]];
+  }
+
+  var Atb = matMultiply(At, bCol);
+  var x = matMultiply(AtAinv, Atb);
+
+  // 展平為一維陣列
+  var result = [];
+  for (var j = 0; j < x.length; j++) {
+    result[j] = x[j][0];
+  }
+  return result;
+}
+
+// ============================================
+// 資料讀取
+// ============================================
+
+/**
+ * 從 TBA Matches 工作表讀取比賽資料（含分數）
+ * @returns {Object[]} 比賽列表 [{ matchId, redTeams: [t1,t2,t3], blueTeams: [t1,t2,t3], redScore, blueScore }]
+ */
+function extractMatchesFromTBA() {
+  var sheet = getSheet(TBA_CONFIG.SHEET_MATCHES);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  var matchKeyIdx = headers.indexOf('matchKey');
+  var compLevelIdx = headers.indexOf('compLevel');
+  var setNumberIdx = headers.indexOf('setNumber');
+  var matchNumberIdx = headers.indexOf('matchNumber');
+  var r1Idx = headers.indexOf('redTeam1');
+  var r2Idx = headers.indexOf('redTeam2');
+  var r3Idx = headers.indexOf('redTeam3');
+  var b1Idx = headers.indexOf('blueTeam1');
+  var b2Idx = headers.indexOf('blueTeam2');
+  var b3Idx = headers.indexOf('blueTeam3');
+  var rsIdx = headers.indexOf('redScore');
+  var bsIdx = headers.indexOf('blueScore');
+
+  if (compLevelIdx === -1 || matchNumberIdx === -1 || r1Idx === -1 || rsIdx === -1) {
+    console.log('TBA Matches sheet is missing required columns.');
+    return [];
+  }
+
+  var matches = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var compLevel = String(row[compLevelIdx] || '');
+    var setNum = String(row[setNumberIdx] || '');
+    var matchNum = String(row[matchNumberIdx] || '');
+
+    // 產生友善顯示 ID
+    var matchId = parseMatchKey(compLevel, setNum, matchNum);
+
+    var redScore = row[rsIdx];
+    var blueScore = row[bsIdx];
+
+    matches.push({
+      matchId: matchId,
+      redTeams: [String(row[r1Idx] || ''), String(row[r2Idx] || ''), String(row[r3Idx] || '')],
+      blueTeams: [String(row[b1Idx] || ''), String(row[b2Idx] || ''), String(row[b3Idx] || '')],
+      redScore: (redScore !== '' && redScore !== null && redScore !== undefined) ? Number(redScore) : '',
+      blueScore: (blueScore !== '' && blueScore !== null && blueScore !== undefined) ? Number(blueScore) : '',
+      source: 'TBA'
+    });
+  }
+  return matches;
+}
+
+/**
+ * 從 Match Data 工作表讀取比賽組成（分數留空，由用戶手動填寫）
+ * @returns {Object[]} 比賽列表
+ */
+function extractMatchesFromScouting() {
+  var sheet = getSheet(CONFIG.SHEET_MATCH);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  var levelIdx = headers.indexOf('matchLevel');
+  var numberIdx = headers.indexOf('matchNumber');
+  var allianceIdx = headers.indexOf('alliance');
+  var teamIdx = headers.indexOf('teamNumber');
+
+  if (levelIdx === -1 || numberIdx === -1 || allianceIdx === -1 || teamIdx === -1) {
+    console.log('Match Data sheet is missing required columns.');
+    return [];
+  }
+
+  // 按 matchLevel + matchNumber 分組
+  var matchMap = {};
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var ml = String(row[levelIdx] || '');
+    var mn = String(row[numberIdx] || '');
+    var alliance = String(row[allianceIdx] || '');
+    var team = String(row[teamIdx] || '');
+
+    if (!ml || !mn || !team) continue;
+
+    var key = ml + '_' + mn;
+    if (!matchMap[key]) {
+      matchMap[key] = { matchLevel: ml, matchNumber: mn, red: [], blue: [] };
+    }
+
+    // R 開頭 → 紅方，B 開頭 → 藍方
+    if (alliance.charAt(0) === 'R') {
+      matchMap[key].red.push(team);
+    } else if (alliance.charAt(0) === 'B') {
+      matchMap[key].blue.push(team);
+    }
+  }
+
+  // 轉為比賽陣列
+  var matches = [];
+  var sortedKeys = Object.keys(matchMap).sort(function(a, b) {
+    var pa = a.split('_');
+    var pb = b.split('_');
+    var levelOrder = { 'P': 0, 'QM': 1, 'PO': 2, 'X': 3 };
+    var la = levelOrder[pa[0]] !== undefined ? levelOrder[pa[0]] : 99;
+    var lb = levelOrder[pb[0]] !== undefined ? levelOrder[pb[0]] : 99;
+    if (la !== lb) return la - lb;
+    return Number(pa[1]) - Number(pb[1]);
+  });
+
+  for (var j = 0; j < sortedKeys.length; j++) {
+    var m = matchMap[sortedKeys[j]];
+    // 補齊 3 支隊伍
+    while (m.red.length < 3) m.red.push('');
+    while (m.blue.length < 3) m.blue.push('');
+
+    matches.push({
+      matchId: m.matchLevel + ' ' + m.matchNumber,
+      redTeams: [m.red[0], m.red[1], m.red[2]],
+      blueTeams: [m.blue[0], m.blue[1], m.blue[2]],
+      redScore: '',
+      blueScore: '',
+      source: 'Scouting'
+    });
+  }
+  return matches;
+}
+
+/**
+ * 解析 TBA compLevel + setNumber + matchNumber 為友善顯示
+ * @param {string} compLevel - 比賽等級 (qm/qf/sf/f)
+ * @param {string} setNumber
+ * @param {string} matchNumber
+ * @returns {string} 例如 "QM 1", "SF 2-1", "F 1"
+ */
+function parseMatchKey(compLevel, setNumber, matchNumber) {
+  var level = String(compLevel || '').toUpperCase();
+  var set = String(setNumber || '');
+  var num = String(matchNumber || '');
+
+  if (level === 'QM') {
+    return 'QM ' + num;
+  } else if (level === 'QF' || level === 'SF' || level === 'EF') {
+    return level + ' ' + set + '-' + num;
+  } else if (level === 'F') {
+    return 'F ' + num;
+  }
+  return level + ' ' + num;
+}
+
+// ============================================
+// 主要功能
+// ============================================
+
+/**
+ * 建立/更新 OPR Analysis 工作表，填入比賽資料
+ * 優先使用 TBA 資料，無 TBA 時從 scouting 資料建立
+ *
+ * 在 Apps Script 編輯器中選擇此函數，點「執行」
+ */
+function buildOPRSheet() {
+  // 1. 嘗試從 TBA 讀取
+  var matches = extractMatchesFromTBA();
+  var dataSource = 'TBA';
+
+  // 2. 無 TBA 資料時，從 scouting 讀取
+  if (matches.length === 0) {
+    matches = extractMatchesFromScouting();
+    dataSource = 'Scouting';
+  }
+
+  if (matches.length === 0) {
+    console.log('No match data found. Import TBA data (syncAllTBA) or upload scouting data first.');
+    return;
+  }
+
+  // 3. 建立/取得工作表
+  var sheet = getOrCreateOPRSheet();
+
+  // 4. 清除 Section A 舊資料（保留標頭行）
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    // 只清除 A-L 欄的資料行
+    sheet.getRange(2, 1, lastRow - 1, OPR_HEADERS_A.length).clearContent();
+  }
+
+  // 5. 寫入比賽資料
+  var rows = [];
+  for (var i = 0; i < matches.length; i++) {
+    var m = matches[i];
+    rows.push([
+      m.matchId,
+      m.redTeams[0], m.redTeams[1], m.redTeams[2],
+      m.blueTeams[0], m.blueTeams[1], m.blueTeams[2],
+      m.redScore, m.blueScore,
+      '', '',  // redPredicted, bluePredicted（calculateOPR 後填入）
+      m.source
+    ]);
+  }
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, OPR_HEADERS_A.length).setValues(rows);
+  }
+
+  // 6. 設定 Section C 查詢公式
+  setupOPRLookupFormulas(sheet);
+
+  console.log('=== OPR Sheet Built ===');
+  console.log('Data source: ' + dataSource);
+  console.log('Matches loaded: ' + matches.length);
+  if (dataSource === 'Scouting') {
+    console.log('NOTE: Scores are empty. Please fill in redScore (H) and blueScore (I) columns manually.');
+  }
+  console.log('Next step: Run calculateOPR() to compute OPR values.');
+}
+
+/**
+ * 計算 OPR 並寫入排名和預測分數
+ *
+ * 在 Apps Script 編輯器中選擇此函數，點「執行」
+ */
+function calculateOPR() {
+  var sheet = getSheet(OPR_SHEET_NAME);
+  if (!sheet) {
+    console.log('OPR Analysis sheet not found. Run buildOPRSheet() first.');
+    return;
+  }
+
+  // 1. 讀取 Section A 資料
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    console.log('No match data in OPR Analysis sheet. Run buildOPRSheet() first.');
+    return;
+  }
+
+  var dataRange = sheet.getRange(2, 1, lastRow - 1, OPR_HEADERS_A.length).getValues();
+
+  // 2. 收集所有隊伍 + 建立有分數的比賽資料
+  var teamSet = {};
+  var scoredMatches = [];
+
+  for (var i = 0; i < dataRange.length; i++) {
+    var row = dataRange[i];
+    var matchId = String(row[0] || '');
+    if (!matchId) continue;
+
+    var redTeams = [String(row[1] || ''), String(row[2] || ''), String(row[3] || '')];
+    var blueTeams = [String(row[4] || ''), String(row[5] || ''), String(row[6] || '')];
+    var redScore = row[7];
+    var blueScore = row[8];
+
+    // 記錄所有隊伍
+    for (var t = 0; t < 3; t++) {
+      if (redTeams[t]) teamSet[redTeams[t]] = true;
+      if (blueTeams[t]) teamSet[blueTeams[t]] = true;
+    }
+
+    // 只使用有分數的場次
+    var rs = (redScore !== '' && redScore !== null && redScore !== undefined) ? Number(redScore) : NaN;
+    var bs = (blueScore !== '' && blueScore !== null && blueScore !== undefined) ? Number(blueScore) : NaN;
+    if (!isNaN(rs) && !isNaN(bs)) {
+      scoredMatches.push({
+        rowIndex: i,
+        redTeams: redTeams,
+        blueTeams: blueTeams,
+        redScore: rs,
+        blueScore: bs
+      });
+    }
+  }
+
+  if (scoredMatches.length === 0) {
+    console.log('No scored matches found. Fill in redScore and blueScore columns first.');
+    return;
+  }
+
+  // 3. 建立隊伍索引
+  var teamList = Object.keys(teamSet).sort(function(a, b) { return Number(a) - Number(b); });
+  var teamIndex = {};
+  for (var ti = 0; ti < teamList.length; ti++) {
+    teamIndex[teamList[ti]] = ti;
+  }
+  var numTeams = teamList.length;
+
+  // 4. 建立聯盟矩陣 A 和分數向量 b
+  var A = [];
+  var b = [];
+  var matchesPerTeam = {};
+
+  for (var mi = 0; mi < scoredMatches.length; mi++) {
+    var sm = scoredMatches[mi];
+
+    // 紅方行
+    var redRow = [];
+    for (var c = 0; c < numTeams; c++) redRow[c] = 0;
+    for (var r = 0; r < 3; r++) {
+      if (sm.redTeams[r] && teamIndex[sm.redTeams[r]] !== undefined) {
+        redRow[teamIndex[sm.redTeams[r]]] = 1;
+        matchesPerTeam[sm.redTeams[r]] = (matchesPerTeam[sm.redTeams[r]] || 0) + 1;
+      }
+    }
+    A.push(redRow);
+    b.push(sm.redScore);
+
+    // 藍方行
+    var blueRow = [];
+    for (var c2 = 0; c2 < numTeams; c2++) blueRow[c2] = 0;
+    for (var bl = 0; bl < 3; bl++) {
+      if (sm.blueTeams[bl] && teamIndex[sm.blueTeams[bl]] !== undefined) {
+        blueRow[teamIndex[sm.blueTeams[bl]]] = 1;
+        matchesPerTeam[sm.blueTeams[bl]] = (matchesPerTeam[sm.blueTeams[bl]] || 0) + 1;
+      }
+    }
+    A.push(blueRow);
+    b.push(sm.blueScore);
+  }
+
+  // 5. 求解 OPR
+  var oprValues = solveOPR(A, b);
+  if (!oprValues) {
+    console.log('Matrix is singular - cannot compute OPR. Need more scored matches with diverse team combinations.');
+    return;
+  }
+
+  // 6. 寫入 OPR 排名（Section B，欄 N-R）
+  var now = new Date().toISOString();
+  var oprData = [];
+  for (var oi = 0; oi < teamList.length; oi++) {
+    oprData.push({
+      team: teamList[oi],
+      opr: Math.round(oprValues[oi] * 100) / 100,
+      matches: matchesPerTeam[teamList[oi]] || 0
+    });
+  }
+
+  // 按 OPR 降序排名
+  oprData.sort(function(a, b2) { return b2.opr - a.opr; });
+
+  var rankRows = [];
+  for (var ri = 0; ri < oprData.length; ri++) {
+    rankRows.push([
+      ri + 1,
+      oprData[ri].team,
+      oprData[ri].opr,
+      oprData[ri].matches,
+      now
+    ]);
+  }
+
+  // 清除舊排名資料（欄 N-R）
+  var sectionBStartCol = 14; // N = 14
+  var oldRankRows = sheet.getLastRow() - 1;
+  if (oldRankRows > 0) {
+    sheet.getRange(2, sectionBStartCol, oldRankRows, OPR_HEADERS_B.length).clearContent();
+  }
+
+  if (rankRows.length > 0) {
+    sheet.getRange(2, sectionBStartCol, rankRows.length, OPR_HEADERS_B.length).setValues(rankRows);
+  }
+
+  // 7. 寫入預測分數（Section A 的 J、K 欄）
+  var predictedCol = OPR_HEADERS_A.indexOf('redPredicted') + 1; // 10
+  for (var pi = 0; pi < dataRange.length; pi++) {
+    var pRow = dataRange[pi];
+    var pMatchId = String(pRow[0] || '');
+    if (!pMatchId) continue;
+
+    var pRedTeams = [String(pRow[1] || ''), String(pRow[2] || ''), String(pRow[3] || '')];
+    var pBlueTeams = [String(pRow[4] || ''), String(pRow[5] || ''), String(pRow[6] || '')];
+
+    var redPred = 0;
+    var bluePred = 0;
+    var redValid = false;
+    var blueValid = false;
+
+    for (var pt = 0; pt < 3; pt++) {
+      if (pRedTeams[pt] && teamIndex[pRedTeams[pt]] !== undefined) {
+        redPred += oprValues[teamIndex[pRedTeams[pt]]];
+        redValid = true;
+      }
+      if (pBlueTeams[pt] && teamIndex[pBlueTeams[pt]] !== undefined) {
+        bluePred += oprValues[teamIndex[pBlueTeams[pt]]];
+        blueValid = true;
+      }
+    }
+
+    sheet.getRange(pi + 2, predictedCol).setValue(redValid ? Math.round(redPred * 100) / 100 : '');
+    sheet.getRange(pi + 2, predictedCol + 1).setValue(blueValid ? Math.round(bluePred * 100) / 100 : '');
+  }
+
+  // 8. 更新查詢公式
+  setupOPRLookupFormulas(sheet);
+
+  console.log('=== OPR Calculation Complete ===');
+  console.log('Scored matches used: ' + scoredMatches.length);
+  console.log('Teams ranked: ' + oprData.length);
+  if (oprData.length > 0) {
+    console.log('Top 3:');
+    for (var top = 0; top < Math.min(3, oprData.length); top++) {
+      console.log('  #' + (top + 1) + ' Team ' + oprData[top].team + ' — OPR: ' + oprData[top].opr);
+    }
+  }
+}
+
+// ============================================
+// OPR 輔助函式
+// ============================================
+
+/**
+ * 建立 OPR Analysis 工作表（含三區塊佈局）
+ * @returns {Sheet} 工作表物件
+ */
+function getOrCreateOPRSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(OPR_SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(OPR_SHEET_NAME);
+  }
+
+  // --- Section A 標頭（欄 A-L）---
+  sheet.getRange(1, 1, 1, OPR_HEADERS_A.length).setValues([OPR_HEADERS_A]);
+  sheet.getRange(1, 1, 1, OPR_HEADERS_A.length)
+    .setFontWeight('bold')
+    .setBackground('#4285f4')
+    .setFontColor('#ffffff');
+
+  // --- Section B 標頭（欄 N-R）---
+  var sectionBStartCol = 14; // N
+  sheet.getRange(1, sectionBStartCol, 1, OPR_HEADERS_B.length).setValues([OPR_HEADERS_B]);
+  sheet.getRange(1, sectionBStartCol, 1, OPR_HEADERS_B.length)
+    .setFontWeight('bold')
+    .setBackground('#0f9d58')
+    .setFontColor('#ffffff');
+
+  // --- Section C 標頭區域（欄 T-Z）---
+  var sectionCStartCol = 20; // T
+
+  // T1: 區塊標題
+  sheet.getRange(1, sectionCStartCol).setValue('Team Lookup');
+  sheet.getRange(1, sectionCStartCol)
+    .setFontWeight('bold')
+    .setBackground('#f4b400')
+    .setFontColor('#ffffff');
+
+  // T2: "隊伍代號:" 標籤
+  sheet.getRange(2, sectionCStartCol).setValue('隊伍代號:');
+  sheet.getRange(2, sectionCStartCol).setFontWeight('bold');
+
+  // U2: 輸入格（黃底）
+  sheet.getRange(2, sectionCStartCol + 1)
+    .setBackground('#fff2cc')
+    .setBorder(true, true, true, true, false, false)
+    .setFontWeight('bold');
+
+  // T3/U3: OPR
+  sheet.getRange(3, sectionCStartCol).setValue('OPR:');
+  sheet.getRange(3, sectionCStartCol).setFontWeight('bold');
+
+  // T4/U4: 排名
+  sheet.getRange(4, sectionCStartCol).setValue('排名:');
+  sheet.getRange(4, sectionCStartCol).setFontWeight('bold');
+
+  // T5/U5: 比賽場數
+  sheet.getRange(5, sectionCStartCol).setValue('比賽場數:');
+  sheet.getRange(5, sectionCStartCol).setFontWeight('bold');
+
+  // 比賽紀錄標頭（W7:Z7）
+  var matchRecordHeaders = ['matchId', 'alliance', 'score', 'predicted'];
+  sheet.getRange(7, sectionCStartCol + 3, 1, 4).setValues([matchRecordHeaders]);
+  sheet.getRange(7, sectionCStartCol + 3, 1, 4)
+    .setFontWeight('bold')
+    .setBackground('#e8eaf6');
+
+  sheet.setFrozenRows(1);
+
+  return sheet;
+}
+
+/**
+ * 寫入 Section C 的 VLOOKUP / FILTER 公式
+ * @param {Sheet} sheet - OPR Analysis 工作表
+ */
+function setupOPRLookupFormulas(sheet) {
+  var sectionCStartCol = 20; // T
+  var inputCell = 'U2'; // 用戶輸入隊號的格
+
+  // Section B 佈局：N=rank, O=teamNumber, P=opr, Q=matchesPlayed, R=lastCalculated
+  // VLOOKUP 要求查詢欄位在範圍第一欄，但 teamNumber 在 O 欄（第二欄），改用 INDEX/MATCH
+
+  // U3: OPR 值
+  sheet.getRange(3, sectionCStartCol + 1).setFormula(
+    '=IFERROR(INDEX(P:P,MATCH(' + inputCell + ',O:O,0)),"")'
+  );
+
+  // U4: 排名 / 總隊數
+  sheet.getRange(4, sectionCStartCol + 1).setFormula(
+    '=IFERROR(INDEX(N:N,MATCH(' + inputCell + ',O:O,0))&" / "&COUNTA(N2:N),"")'
+  );
+
+  // U5: 比賽場數
+  sheet.getRange(5, sectionCStartCol + 1).setFormula(
+    '=IFERROR(INDEX(Q:Q,MATCH(' + inputCell + ',O:O,0)),"")'
+  );
+
+  // W8+: 該隊比賽紀錄（紅藍方合併 FILTER）
+  // 顯示 matchId / alliance / score / predicted
+  sheet.getRange(8, sectionCStartCol + 3).setFormula(
+    '=IFERROR({FILTER({A2:A,IF((B2:B=U2)+(C2:C=U2)+(D2:D=U2),"Red",""),H2:H,J2:J},(B2:B=U2)+(C2:C=U2)+(D2:D=U2));' +
+    'FILTER({A2:A,IF((E2:E=U2)+(F2:F=U2)+(G2:G=U2),"Blue",""),I2:I,K2:K},(E2:E=U2)+(F2:F=U2)+(G2:G=U2))},"")'
+  );
+}

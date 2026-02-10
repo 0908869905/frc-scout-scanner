@@ -8,7 +8,67 @@
 
 **階段**：已部署上線 (Vercel)
 **完成度**：99%
-**最後更新**：2026-02-05 (matchKey 重複掃描修復)
+**最後更新**：2026-02-10 (OPR Analysis - 進攻效率值計算)
+
+---
+
+## Session: 2026-02-10 (OPR Analysis - 進攻效率值計算)
+
+### 完成項目
+- [x] 在 Code.gs 新增 ~280 行 OPR 計算程式碼
+- [x] 矩陣運算函數：matTranspose, matMultiply, matInverse (Gauss-Jordan + partial pivoting), solveOPR
+- [x] 資料讀取：extractMatchesFromTBA（從 TBA Matches 工作表）、extractMatchesFromScouting（從 Match Data 工作表）
+- [x] 主功能：buildOPRSheet（建立 OPR Analysis 分頁）、calculateOPR（計算 OPR 排名 + 預測分數）
+- [x] 輔助函數：getOrCreateOPRSheet（三區塊佈局）、setupOPRLookupFormulas（INDEX/MATCH + FILTER 公式）、parseMatchKey
+- [x] Code Review 修正：VLOOKUP → INDEX/MATCH（因 teamNumber 不在 lookup 範圍第一欄）、新增 indexOf 驗證防止 -1 靜默失敗
+- [x] 更新 README.md：新增 OPR Analysis 使用說明（TBA / Scouting 兩種工作流）
+- [x] 更新 CLAUDE.md：新增 OPR Analysis 區塊說明（佈局、函數、數學原理）、更新日期
+- [x] 驗證：用 2025 新北區域賽（2025ntwc）68 場資格賽、37 支隊伍實測，計算結果和 TBA 官方 OPR 完全一致（37 支隊伍零誤差）
+
+### 修改檔案（3 個）
+- `google-apps-script/Code.gs` - 新增 OPR Analysis 功能（~280 行：矩陣運算、資料讀取、OPR 計算、工作表佈局、公式設定）
+- `google-apps-script/README.md` - 新增 OPR Analysis 使用說明（TBA / Scouting 兩種工作流程）
+- `CLAUDE.md` - 新增 OPR Analysis 文件區塊、更新日期
+
+### 5-Question Reboot Check
+1. **做什麼？** 在 Code.gs 新增 OPR (Offensive Power Rating) 計算功能，使用最小二乘法求解聯立方程式，從比賽分數反推每支隊伍的進攻效率值
+2. **進度？** 全部完成，已用 2025ntwc 賽事驗證結果與 TBA 官方 OPR 完全一致
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（含 OPR 功能）、在實際賽事中執行 `buildOPRSheet()` 或 `calculateOPR()` 測試
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/Code.gs`（OPR 全部功能：matTranspose/matMultiply/matInverse/solveOPR/extractMatchesFromTBA/extractMatchesFromScouting/buildOPRSheet/calculateOPR/getOrCreateOPRSheet/setupOPRLookupFormulas/parseMatchKey），`google-apps-script/README.md`（OPR 使用說明），`CLAUDE.md`（OPR 文件）
+
+---
+
+## Session: 2026-02-06 (路徑查詢修復 - 空白標頭 + matchLevel 值)
+
+### 完成項目
+- [x] 調查 Path Viewer 後端查詢功能無法運作的問題（輸入正確參數但顯示找不到資料）
+- [x] 排除 matchLevel dropdown 值不匹配的可能性（前端 'QM' vs Scouting PASS enum 'Quals'）
+- [x] 確認 Code.gs API version 1.3.0 已正確部署
+- [x] 新增 `?action=debug` 端點到 Code.gs，回傳工作表概況和樣本資料
+- [x] **發現根本原因**：Match Data 工作表第一行（標頭行）全是空字串，導致所有 `indexOf('eventCode')` 回傳 -1，查詢永遠找不到資料
+- [x] 新增 `?action=fixHeaders` 端點到 Code.gs，自動修復空白標頭
+- [x] 修復 `getOrCreateSheet` 加入防禦性標頭檢查（已存在的工作表若標頭為空自動修復）
+- [x] 呼叫 fixHeaders API 成功修復 Match Data 標頭
+- [x] 還原 PathViewerPage matchLevel dropdown 值為 'P', 'QM', 'PO', 'X'（與實際 QR 資料一致）
+- [x] 修改翻轉 180 度邏輯：只交換聯盟標籤（red<->blue），不再自動換顏色
+- [x] API 查詢驗證成功：queryPaths?eventCode=2026MSLR&matchLevel=QM&matchNumber=1 回傳 3 筆路徑
+- [x] Commit c3f42ea: fix: repair path query by fixing empty sheet headers and matchLevel values
+
+### 修改檔案（6 個）
+- `src/pages/PathViewerPage.tsx` - 還原 matchLevel dropdown 值為 P/QM/PO/X、翻轉只換聯盟不換色
+- `google-apps-script/Code.gs` - 新增 debug/fixHeaders 端點、getOrCreateSheet 防禦性標頭修復
+- `google-apps-script/README.md` - 部署指南更新（新增 debug/fixHeaders 說明）
+- `CLAUDE.md` - 文件更新
+- `ERRORS.md` - 錯誤記錄
+- `FINDINGS.md` - 技術發現
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 Path Viewer 後端查詢功能，根本原因是 Google Sheets 標頭行為空白導致 indexOf 回傳 -1
+2. **進度？** 已完成，commit c3f42ea 已 push 到 main，API 查詢驗證成功
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（含 debug/fixHeaders 端點 + getOrCreateSheet 防禦修復）、重新部署到 Vercel、實際測試 Path Viewer 查詢功能
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/Code.gs`（debug/fixHeaders/getOrCreateSheet），`src/pages/PathViewerPage.tsx`（matchLevel 值 + 翻轉邏輯）
 
 ---
 
@@ -612,9 +672,12 @@ frc-scout-scanner/
 - Scanner 端掃描 pit-path QR 時，自動合併 autoPath 到同隊 pit-external 記錄（多條用 `;` 分隔）
 - Path Viewer 功能：座標可視化、自訂顏色、聯盟標籤(R/B)、圖層排序、後端查詢（queryPaths API）、多路徑同時播放動畫（Play All）、來源標籤（SP/Pit）、路徑 ID 含 matchLevel 防重複、全部顯示/隱藏按鈕
 - 場地圖：兩個專案（scanner + scouting pass）統一使用 3128x1584 版本
-- doGet() 支援 action 參數路由：無 action 時回傳 API 狀態，`action=queryPaths` 查詢路徑資料，`action=tbaStatus` 查詢 TBA 同步狀態，`action=tbaSync` 觸發手動同步
+- doGet() 支援 action 參數路由：無 action 時回傳 API 狀態，`action=queryPaths` 查詢路徑資料，`action=tbaStatus` 查詢 TBA 同步狀態，`action=tbaSync` 觸發手動同步，`action=debug` 回傳工作表概況，`action=fixHeaders` 自動修復空白標頭
+- matchLevel 實際值為縮寫：'P'（Practice）、'QM'（Quals）、'PO'（Playoff）、'X'（Exhibition），不是全名
+- getOrCreateSheet 含防禦性標頭檢查：已存在的工作表若標頭全為空字串會自動修復
 - TBA 自動同步：7 個同步函式（Teams/Matches/ScoreBreakdown/Rankings/OPRs/Alliances/Awards）、ETag 快取、syncAllTBA 協調器（時間守衛 280 秒）
 - TBA 工作表：TBA Teams, TBA Matches, TBA Score Breakdown, TBA Rankings, TBA OPRs, TBA Alliances, TBA Awards
+- OPR Analysis：最小二乘法求解 (A^T * A)^-1 * A^T * b，支援 TBA 資料和 Scouting 資料兩種來源，OPR Analysis 工作表三區塊佈局（OPR 排名 + 預測分數 + Lookup/Filter 公式）
 
 ---
 

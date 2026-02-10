@@ -22,6 +22,8 @@
 14. [seedTestData() 測試資料函數](#seedtestdata-測試資料函數)
 15. [TBA (The Blue Alliance) 自動同步架構](#tba-the-blue-alliance-自動同步架構)
 16. [TBA ETag 快取陷阱（首次同步全部 not_modified）](#tba-etag-快取陷阱首次同步全部-not_modified)
+17. [Google Sheets 空白標頭導致查詢全部失敗](#google-sheets-空白標頭導致查詢全部失敗)
+18. [OPR (Offensive Power Rating) 計算架構](#opr-offensive-power-rating-計算架構)
 
 ---
 
@@ -1197,6 +1199,201 @@ ETag 快取是「隱形狀態」，儲存在 ScriptProperties 中不容易直覺
 
 ---
 
+## Google Sheets 空白標頭導致查詢全部失敗
+
+### 發現日期：2026-02-06
+
+**來源**：Path Viewer 後端查詢功能完全無法運作，所有查詢回傳 0 筆結果
+
+### 問題
+
+Path Viewer 的查詢功能壞掉了。輸入正確的 eventCode、matchLevel、matchNumber 後，API 回傳 0 筆路徑。直接呼叫 API 端點測試，queryPaths 和 queryTeamPaths 都回傳空陣列。
+
+### 原因分析
+
+通過新增 `?action=debug` 端點檢查 Google Sheets 實際內容，發現 Match Data 工作表的第一行（標頭行）全是空字串 `["", "", "", ...]`。
+
+這導致所有依賴 `headers.indexOf('eventCode')` 的查詢邏輯回傳 -1，等同於「找不到這個欄位」，所以任何條件比對都不可能成功：
+
+```javascript
+// 標頭全空時的行為
+var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+// headers = ["", "", "", "", "", ...]
+var eventCodeCol = headers.indexOf('eventCode');
+// eventCodeCol = -1（找不到！）
+
+// 後續比對永遠失敗
+if (row[eventCodeCol] === queryEventCode) { ... }
+// row[-1] === "2026MSLR" → undefined === "2026MSLR" → false
+```
+
+**標頭為何變空**：推測是工作表被重建或手動編輯時，標頭行被清空但資料行仍保留。`getOrCreateSheet` 函數只在「工作表不存在時」才寫入標頭，如果工作表已存在但標頭為空，不會自動修復。
+
+### 解決方案
+
+#### 1. 即時修復：`?action=fixHeaders` 端點
+
+新增 API 端點，檢查所有已知工作表的標頭行，若為空則自動寫入正確的 schema headers：
+
+```javascript
+function handleFixHeaders() {
+  var sheetsToFix = {
+    'Match Data': MATCH_HEADERS,
+    'Path Data': PATH_HEADERS,
+    'Pit Scouting': PIT_HEADERS,
+    // ...
+  };
+  // 逐一檢查並修復空白標頭
+}
+```
+
+#### 2. 長期防禦：`getOrCreateSheet` 加入標頭檢查
+
+修改 `getOrCreateSheet` 函數，在工作表已存在的情況下也檢查標頭是否為空：
+
+```javascript
+function getOrCreateSheet(name, headers) {
+  var sheet = ss.getSheetByName(name);
+  if (sheet) {
+    // 防禦性檢查：標頭全空時自動修復
+    var existingHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    var allEmpty = existingHeaders.every(function(h) { return h === ''; });
+    if (allEmpty) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    return sheet;
+  }
+  // 工作表不存在，建立新的...
+}
+```
+
+#### 3. 同時發現：matchLevel 值是縮寫
+
+調查過程中發現 Scouting PASS 實際存入的 matchLevel 是 'P', 'QM', 'PO', 'X' 縮寫，不是 'Practice', 'Quals', 'Playoff', 'Exhibition' 全名。PathViewerPage 的 dropdown 值已還原為縮寫格式。
+
+### 選擇理由
+
+- **debug 端點**：提供線上診斷能力，不需要進入 Google Apps Script 編輯器就能檢查工作表狀態
+- **fixHeaders 端點**：一次性修復工具，比手動編輯 Google Sheets 更可靠且不易出錯
+- **getOrCreateSheet 防禦修復**：從根源防止未來再次發生標頭丟失的問題，即使工作表被意外清空標頭也能自動恢復
+
+### 關鍵教訓
+
+1. **不要假設工作表標頭永遠正確**：Google Sheets 是多人協作環境，標頭可能被意外清空、移動或修改。所有依賴標頭的查詢邏輯都應該有防禦性檢查。
+2. **`indexOf` 回傳 -1 是靜默失敗**：JavaScript 的 `array.indexOf()` 找不到元素時回傳 -1 而非拋出錯誤。`row[-1]` 回傳 `undefined`，比對永遠失敗但不會報錯，這類 bug 極難從錯誤日誌中發現。
+3. **需要線上診斷工具**：Google Apps Script Web App 的除錯很不方便，新增 `debug` 端點能大幅加速問題排查。
+4. **matchLevel 值要與上游 Scouting App 完全一致**：不能假設值的格式，應該從實際資料中確認。
+
+---
+
+## OPR (Offensive Power Rating) 計算架構
+
+### 發現日期：2026-02-10
+
+**來源**：在 Google Apps Script 中實作 OPR 計算，使用最小二乘法從比賽分數反推隊伍進攻效率
+
+### 數學原理
+
+OPR 使用最小二乘法求解線性方程組。每場比賽的聯盟總分 = 三支隊伍的 OPR 之和：
+
+```
+OPR(team1) + OPR(team2) + OPR(team3) = alliance_score
+```
+
+建立矩陣方程 `A * x = b`：
+- **A**：出場矩陣（rows = 聯盟數 = 比賽數 * 2，cols = 隊伍數），每行標記哪 3 支隊伍出場
+- **x**：待求的 OPR 向量
+- **b**：各聯盟得分向量
+
+因為方程數（聯盟數）通常大於未知數（隊伍數），使用 Normal Equation 求解：
+
+```
+x = (A^T * A)^-1 * A^T * b
+```
+
+### 矩陣運算實作
+
+在 Google Apps Script (ES5) 中從零實作矩陣運算：
+
+1. **matTranspose(A)**：矩陣轉置
+2. **matMultiply(A, B)**：矩陣乘法
+3. **matInverse(A)**：矩陣求逆（Gauss-Jordan 消去法 + partial pivoting）
+4. **solveOPR(A, b)**：組合以上函數求解 OPR
+
+#### Gauss-Jordan + Partial Pivoting
+
+矩陣求逆使用增廣矩陣 `[A | I]` 進行 Gauss-Jordan 消去。加入 partial pivoting（部分主元選取）避免數值不穩定：
+
+```javascript
+// 找到當前列絕對值最大的元素作為主元
+var maxVal = Math.abs(aug[col][col]);
+var maxRow = col;
+for (var k = col + 1; k < n; k++) {
+  if (Math.abs(aug[k][col]) > maxVal) {
+    maxVal = Math.abs(aug[k][col]);
+    maxRow = k;
+  }
+}
+// 交換行
+if (maxRow !== col) {
+  var temp = aug[col];
+  aug[col] = aug[maxRow];
+  aug[maxRow] = temp;
+}
+```
+
+**選擇理由**：
+- Google Apps Script 是 ES5 環境，無法使用 npm 套件或外部數學庫
+- 從零實作矩陣運算約 80 行程式碼，足夠處理 FRC 規模的資料（通常 < 100 支隊伍）
+- Partial pivoting 確保數值穩定性，避免主對角線元素接近零時的計算錯誤
+
+### 雙資料來源
+
+支援兩種工作流：
+
+1. **TBA 資料**（`buildOPRSheet`）：從 TBA Matches 工作表讀取，使用 `parseMatchKey` 解析 matchKey 格式（如 `2025ntwc_qm1`），篩選 `comp_level === 'qm'` 的資格賽
+2. **Scouting 資料**（`calculateOPR`）：從 Match Data 工作表讀取，使用 `matchLevel === 'QM'` 篩選資格賽
+
+兩者共用相同的矩陣運算和 OPR 求解邏輯。
+
+### OPR Analysis 工作表三區塊佈局
+
+```
+Column A-C: OPR 排名（Rank, Team, OPR）- 按 OPR 降序排列
+Column E-I: 預測分數（Match, Red1-3, RedPred, Blue1-3, BluePred）
+Column K+:  Lookup 公式區（輸入 teamNumber 用 INDEX/MATCH 查 OPR + FILTER 查出場記錄）
+```
+
+#### VLOOKUP vs INDEX/MATCH
+
+**發現**：初始實作使用 `VLOOKUP` 查詢隊伍 OPR，但 `VLOOKUP` 要求查找值必須在查找範圍的第一欄。OPR 排名表的欄位順序是 Rank | Team | OPR，teamNumber 在第二欄而非第一欄，導致 VLOOKUP 無法正確運作。
+
+**解決方案**：改用 `INDEX/MATCH` 組合，不受欄位順序限制：
+
+```javascript
+// VLOOKUP（錯誤，因為 teamNumber 不在第一欄）
+'=VLOOKUP(K2, A:C, 3, FALSE)'
+
+// INDEX/MATCH（正確）
+'=IFERROR(INDEX(C:C, MATCH(K2, B:B, 0)), "Not found")'
+```
+
+### 驗證結果
+
+使用 2025 新北區域賽（2025ntwc）實測：
+- 68 場資格賽、37 支隊伍
+- 計算結果與 TBA 官方 OPR 完全一致（37 支隊伍零誤差）
+- 驗證了矩陣運算、資料提取、OPR 求解的完整正確性
+
+### 關鍵教訓
+
+1. **ES5 環境限制**：Google Apps Script 不支援 ES6+ 語法（如 arrow functions、let/const、destructuring），矩陣運算必須用 `var` 和 `function` 關鍵字
+2. **indexOf 驗證**：從工作表標頭取得欄位索引後，必須驗證是否為 -1（參見 E018 經驗），否則 `row[-1]` 會靜默回傳 `undefined`
+3. **VLOOKUP 的第一欄限制**：當查找值不在查找範圍的第一欄時，必須改用 INDEX/MATCH
+4. **OPR 只用資格賽**：OPR 計算只使用資格賽（Quals）數據，因為淘汰賽的聯盟組合是固定的（同一聯盟反覆出場），會導致矩陣奇異（不可逆）
+
+---
+
 ## 參考資源
 
 - [SCANNER_INTEGRATION.md](./SCANNER_INTEGRATION.md) - 整合文件
@@ -1207,4 +1404,4 @@ ETag 快取是「隱形狀態」，儲存在 ScriptProperties 中不容易直覺
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-02-05 (matchKey 重複掃描修復)*
+*最後更新：2026-02-10 (OPR Analysis 計算架構)*
