@@ -58,6 +58,9 @@
 | E017 | Logic | getMatchKey 缺少 matchLevel 導致不同比賽等級被誤判為重複 | 2026-02-05 | 已解決 |
 | E018 | Apps Script | Google Sheets 標頭行全空導致 queryPaths 回傳 0 筆 | 2026-02-06 | 已解決 |
 | E019 | UI | matchLevel dropdown 值與實際 QR 資料不一致 | 2026-02-06 | 已解決 |
+| E020 | Apps Script | VLOOKUP 無法查詢非第一欄的資料，OPR Lookup 公式失效 | 2026-02-10 | 已解決 |
+| E021 | Apps Script | Code.gs getMatchKey 缺少 matchLevel 導致不同比賽等級的 Match Data 互相覆蓋 | 2026-02-10 | 進行中 |
+| E022 | Apps Script | Batch 上傳回應永遠 success:true 導致前端無法偵測個別項目失敗 | 2026-02-10 | 進行中 |
 
 ---
 
@@ -789,6 +792,137 @@ if (sheet) {
 
 ---
 
+### [E020] VLOOKUP 無法查詢非第一欄的資料，OPR Lookup 公式失效
+
+**日期**：2026-02-10
+**嚴重程度**：中
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+OPR Analysis 工作表的 Lookup 公式區輸入 teamNumber 後，VLOOKUP 回傳 #N/A 或錯誤值
+```
+
+**根本原因**：
+- OPR 排名表的欄位順序是 `Rank | Team | OPR`（A 欄 = Rank，B 欄 = Team，C 欄 = OPR）
+- `VLOOKUP` 要求查找值（teamNumber）必須位於查找範圍的**第一欄**
+- 但 teamNumber 在第二欄（B 欄），不在第一欄（A 欄）
+- `VLOOKUP(K2, A:C, 3, FALSE)` 會在 A 欄（Rank）中搜尋 teamNumber，永遠找不到
+
+**解決方案**：
+```javascript
+// 錯誤：VLOOKUP（teamNumber 不在查找範圍第一欄）
+'=VLOOKUP(K2, A:C, 3, FALSE)'
+
+// 正確：INDEX/MATCH（不受欄位順序限制）
+'=IFERROR(INDEX(C:C, MATCH(K2, B:B, 0)), "Not found")'
+// MATCH(K2, B:B, 0) → 在 B 欄中精確搜尋 teamNumber，回傳行號
+// INDEX(C:C, 行號) → 從 C 欄（OPR）取出對應值
+```
+
+**預防措施**：
+- 當查找值不在查找範圍的第一欄時，必須使用 `INDEX/MATCH` 而非 `VLOOKUP`
+- `INDEX/MATCH` 是 `VLOOKUP` 的上位替代，無欄位順序限制，建議優先使用
+- 在 Google Apps Script 中用 `setupOPRLookupFormulas` 設定公式時，先確認資料欄位的實際排列順序
+
+**相關檔案**：
+- google-apps-script/Code.gs（setupOPRLookupFormulas 函數）
+
+---
+
+### [E021] Code.gs getMatchKey 缺少 matchLevel 導致不同比賽等級的 Match Data 互相覆蓋
+
+**日期**：2026-02-10
+**嚴重程度**：高
+**狀態**：進行中
+
+**錯誤訊息**：
+```
+4 筆 Match Data 上傳顯示成功，但試算表只有部分資料（不同 matchLevel 同 matchNumber 的記錄互相覆蓋）
+```
+
+**根本原因**：
+- 前端 `decoder.ts` 的 `getMatchKey` 在 E017 修復中已加入 matchLevel：`eventCode_matchLevel_matchNumber_teamNumber`
+- 後端 `Code.gs` 的 `getMatchKey`（第 990 行）從未同步更新，仍使用：`eventCode_matchNumber_teamNumber`
+- `findRowByMatchKey`（第 997-1011 行）同樣缺少 matchLevel
+- 當 Practice #1 和 Quals #1 的同隊記錄上傳時，後端視為同一筆，後者覆蓋前者
+- 這是 E017 的後端版本：前端已修，後端未修
+
+**解決方案**：
+```javascript
+// Code.gs getMatchKey - 修復前（錯誤）
+function getMatchKey(data) {
+  return data.eventCode + '_' + data.matchNumber + '_' + data.teamNumber;
+}
+
+// Code.gs getMatchKey - 修復後（正確）
+function getMatchKey(data) {
+  return data.eventCode + '_' + data.matchLevel + '_' + data.matchNumber + '_' + data.teamNumber;
+}
+
+// findRowByMatchKey 同樣需要加入 matchLevel 維度的比對
+```
+
+**預防措施**：
+- 前後端的 matchKey 邏輯必須保持同步，修改前端時要同時檢查後端
+- E017 修復時只改了前端 decoder.ts，遺漏了後端 Code.gs，應建立前後端同步修改的 checklist
+- FRC 比賽數據唯一性 key = eventCode + matchLevel + matchNumber + teamNumber（四要素缺一不可）
+
+**相關檔案**：
+- google-apps-script/Code.gs（getMatchKey 第 990 行、findRowByMatchKey 第 997-1011 行）
+- src/utils/decoder.ts（前端已修復，作為參考）
+
+---
+
+### [E022] Batch 上傳回應永遠 success:true 導致前端無法偵測個別項目失敗
+
+**日期**：2026-02-10
+**嚴重程度**：高
+**狀態**：進行中
+
+**錯誤訊息**：
+```
+Batch 上傳 4 筆資料，實際只有部分寫入成功，但前端顯示全部上傳成功
+前端將所有項目標記為「已上傳」，用戶無法得知哪些項目失敗
+```
+
+**根本原因**：
+- Code.gs 的 `doPost` 處理 batch 時（第 679 行），無論個別項目成功或失敗，一律回傳 `{ success: true, message: "Processed X/Y items" }`
+- 個別項目的成功/失敗細節（details）沒有包含在回應中
+- 前端 `sheets.ts`（第 187 行）只檢查頂層 `success: true`，看到成功就把全部項目標記為「已上傳」
+- 即使有項目因 E021（matchKey 覆蓋）而實際失敗，前端也無從得知
+
+**解決方案**：
+```javascript
+// Code.gs doPost batch 回應 - 修復前（錯誤）
+return ContentService.createTextOutput(JSON.stringify({
+  success: true,
+  message: 'Processed ' + successCount + '/' + total + ' items'
+}));
+
+// Code.gs doPost batch 回應 - 修復後（正確）
+return ContentService.createTextOutput(JSON.stringify({
+  success: successCount === total,  // 只有全部成功才回傳 true
+  message: 'Processed ' + successCount + '/' + total + ' items',
+  details: details  // 每個項目的個別結果 [{index, success, error?}, ...]
+}));
+
+// sheets.ts uploadBatch - 修復後
+// 解析 details，只將 success 的項目標記為已上傳
+```
+
+**預防措施**：
+- Batch API 回應必須包含個別項目的成功/失敗細節（details 陣列）
+- 前端不能只看頂層 success flag，必須解析每個項目的狀態
+- 「部分成功」是 batch 操作的常見情境，API 設計時必須考慮
+- 類似問題模式：HTTP 207 Multi-Status 的設計理念
+
+**相關檔案**：
+- google-apps-script/Code.gs（doPost batch 處理，第 679 行）
+- src/utils/sheets.ts（uploadBatch 回應解析，第 187 行）
+
+---
+
 ## 常見錯誤模式
 
 ### 1. TypeScript 類型錯誤
@@ -905,11 +1039,11 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 19 |
-| 已解決 | 19 |
-| 進行中 | 0 |
-| 高嚴重度 | 10 |
-| 中嚴重度 | 7 |
+| 總錯誤數 | 22 |
+| 已解決 | 20 |
+| 進行中 | 2 |
+| 高嚴重度 | 12 |
+| 中嚴重度 | 8 |
 | 低嚴重度 | 2 |
 
 ---
@@ -923,4 +1057,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-02-06*
+*最後更新：2026-02-10*

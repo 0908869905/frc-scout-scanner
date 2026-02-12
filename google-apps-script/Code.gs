@@ -676,13 +676,21 @@ function doPost(e) {
         throw new Error(`Unknown data type: ${payload.type}`);
     }
 
-    return createJsonResponse({
+    var response = {
       success: true,
       message: result.message,
       rowNumber: result.rowNumber,
       type: payload.type,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    // batch 回應加入 details（個別項目成敗）
+    if (payload.type === 'batch' && result.details) {
+      response.details = result.details;
+      response.success = result.details.every(function(d) { return d.success; });
+    }
+
+    return createJsonResponse(response);
 
   } catch (error) {
     logError(error, e.postData?.contents);
@@ -743,10 +751,10 @@ function handlePathData(data) {
   // 如果啟用自動合併，嘗試將 Path 合併到對應的 Match 或 Pit
   if (CONFIG.AUTO_MERGE_PATH) {
     // 1. 先嘗試合併到 Match（Scouting PASS 的 path）
+    // Path QR 沒有 matchLevel 欄位，用 eventCode + matchNumber + teamNumber 比對
     const matchSheet = getSheet(CONFIG.SHEET_MATCH);
     if (matchSheet) {
-      const matchKey = getMatchKey(data);
-      const matchRow = findRowByMatchKey(matchSheet, matchKey);
+      const matchRow = findMatchRowByPathData(matchSheet, data);
 
       if (matchRow > 0) {
         // 找到對應的 Match，更新 autoPath 欄位
@@ -986,24 +994,51 @@ function getRowData(sheet, rowNumber, headers) {
 
 /**
  * 產生 Match Key（用於識別唯一比賽紀錄）
+ * 包含 matchLevel 以區分 Practice/Quals/Playoff 的相同場次號
  */
 function getMatchKey(data) {
-  return `${data.eventCode || ''}_${data.matchNumber || ''}_${data.teamNumber || ''}`;
+  return `${data.eventCode || ''}_${data.matchLevel || ''}_${data.matchNumber || ''}_${data.teamNumber || ''}`;
 }
 
 /**
- * 根據 Match Key 尋找列號
+ * 根據 Match Key 尋找列號（含 matchLevel）
  */
 function findRowByMatchKey(sheet, matchKey) {
+  const data = sheet.getDataRange().getValues();
+  const eventCodeIdx = SHEET_HEADERS.MATCH.indexOf('eventCode');
+  const matchLevelIdx = SHEET_HEADERS.MATCH.indexOf('matchLevel');
+  const matchNumberIdx = SHEET_HEADERS.MATCH.indexOf('matchNumber');
+  const teamNumberIdx = SHEET_HEADERS.MATCH.indexOf('teamNumber');
+
+  for (let i = 1; i < data.length; i++) {
+    const rowKey = `${data[i][eventCodeIdx]}_${data[i][matchLevelIdx]}_${data[i][matchNumberIdx]}_${data[i][teamNumberIdx]}`;
+    if (rowKey === matchKey) {
+      return i + 1; // 列號從 1 開始
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * 根據 eventCode + matchNumber + teamNumber 尋找 Match 列號
+ * 用於 Path 合併（Path QR 沒有 matchLevel 欄位）
+ */
+function findMatchRowByPathData(sheet, pathData) {
   const data = sheet.getDataRange().getValues();
   const eventCodeIdx = SHEET_HEADERS.MATCH.indexOf('eventCode');
   const matchNumberIdx = SHEET_HEADERS.MATCH.indexOf('matchNumber');
   const teamNumberIdx = SHEET_HEADERS.MATCH.indexOf('teamNumber');
 
+  var targetEvent = String(pathData.eventCode || '');
+  var targetMatch = String(pathData.matchNumber || '');
+  var targetTeam = String(pathData.teamNumber || '');
+
   for (let i = 1; i < data.length; i++) {
-    const rowKey = `${data[i][eventCodeIdx]}_${data[i][matchNumberIdx]}_${data[i][teamNumberIdx]}`;
-    if (rowKey === matchKey) {
-      return i + 1; // 列號從 1 開始
+    if (String(data[i][eventCodeIdx]) === targetEvent &&
+        String(data[i][matchNumberIdx]) === targetMatch &&
+        String(data[i][teamNumberIdx]) === targetTeam) {
+      return i + 1;
     }
   }
 

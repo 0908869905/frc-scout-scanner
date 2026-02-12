@@ -8,7 +8,27 @@
 
 **階段**：已部署上線 (Vercel)
 **完成度**：99%
-**最後更新**：2026-02-10 (OPR Analysis - 進攻效率值計算)
+**最後更新**：2026-02-10 (上傳失敗問題診斷)
+
+---
+
+## Session: 2026-02-10 (上傳失敗問題診斷)
+
+### 完成項目
+- [x] 診斷「4 筆 Match Data 上傳成功但試算表沒資料」的問題
+- [x] 發現 Bug 1：Code.gs `getMatchKey` 缺少 `matchLevel`，導致不同比賽等級的記錄互相覆蓋
+- [x] 發現 Bug 2：Batch 上傳回應永遠 `success: true`，前端無法偵測個別項目失敗
+- [x] 確認前端 decoder.ts 的 `getMatchKey` 已有 matchLevel（E017 修復），但後端 Code.gs 從未同步更新
+
+### 修改檔案（0 個）
+- 本次僅診斷，未修改程式碼
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 2 個 bug：(1) Code.gs `getMatchKey` 和 `findRowByMatchKey` 加入 matchLevel 防止覆蓋 (2) Batch 上傳回應改為反映個別項目成敗，前端 sheets.ts 正確處理部分失敗
+2. **進度？** 問題已診斷完成，尚未開始修復
+3. **下一步？** 修改 Code.gs 的 `getMatchKey` 和 `findRowByMatchKey` 加入 matchLevel；修改 doPost batch 回應加入 details；修改 sheets.ts 解析 batch details 只標記成功項目為已上傳；重新部署 Code.gs
+4. **阻礙？** 無，解決方案已明確
+5. **檔案？** `google-apps-script/Code.gs`（getMatchKey 第 990 行、findRowByMatchKey 第 997 行、doPost 第 679 行），`src/utils/sheets.ts`（uploadBatch 第 187 行）
 
 ---
 
@@ -24,6 +44,7 @@
 - [x] 更新 README.md：新增 OPR Analysis 使用說明（TBA / Scouting 兩種工作流）
 - [x] 更新 CLAUDE.md：新增 OPR Analysis 區塊說明（佈局、函數、數學原理）、更新日期
 - [x] 驗證：用 2025 新北區域賽（2025ntwc）68 場資格賽、37 支隊伍實測，計算結果和 TBA 官方 OPR 完全一致（37 支隊伍零誤差）
+- [x] Commit 1fb9931: feat: add OPR Analysis to Google Apps Script
 
 ### 修改檔案（3 個）
 - `google-apps-script/Code.gs` - 新增 OPR Analysis 功能（~280 行：矩陣運算、資料讀取、OPR 計算、工作表佈局、公式設定）

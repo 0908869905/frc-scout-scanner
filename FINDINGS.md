@@ -1378,6 +1378,17 @@ Column K+:  Lookup 公式區（輸入 teamNumber 用 INDEX/MATCH 查 OPR + FILTE
 '=IFERROR(INDEX(C:C, MATCH(K2, B:B, 0)), "Not found")'
 ```
 
+### Google Sheets FILTER 公式合併多個陣列
+
+OPR Lookup 區使用 `FILTER` 公式查詢指定隊伍的所有出場記錄。當需要同時搜尋 Red1、Red2、Red3、Blue1、Blue2、Blue3 六個欄位時，使用 `{...;...}` 語法（分號分隔）合併多個 FILTER 結果：
+
+```
+=FILTER({E:I;E:I;E:I;E:I;E:I;E:I},
+  {F:F=K2;G:G=K2;H:H=K2;F:F=K2;G:G=K2;H:H=K2})
+```
+
+**注意**：`{A;B}` 是垂直堆疊（上下合併），`{A,B}` 是水平堆疊（左右合併）。在需要合併多個條件的查詢結果時，垂直堆疊是正確的選擇。
+
 ### 驗證結果
 
 使用 2025 新北區域賽（2025ntwc）實測：
