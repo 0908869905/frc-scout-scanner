@@ -79,13 +79,9 @@ export function ScanPage({
     }
 
     // 檢查 Path 是否需要配對到現有 Match
-    // 注意：Path QR 沒有 matchLevel 欄位，所以用 eventCode + matchNumber + teamNumber 比對
     if (result.type === 'path') {
       const matchItem = currentHistory.find(
-        (h) => h.qrType === 'match' &&
-               h.data.eventCode === result.data.eventCode &&
-               h.data.matchNumber === result.data.matchNumber &&
-               h.data.teamNumber === result.data.teamNumber
+        (h) => h.qrType === 'match' && h.matchKey === matchKey
       );
 
       if (matchItem) {

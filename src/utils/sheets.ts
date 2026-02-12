@@ -176,7 +176,7 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
 
     const text = await response.text();
 
-    let result: { success: boolean; details?: Array<{ success: boolean; error?: string }> };
+    let result: { success: boolean };
 
     try {
       result = JSON.parse(text);
@@ -184,25 +184,13 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
       result = { success: false };
     }
 
-    if (result.success || result.details) {
-      // 解析 details，只將成功的項目標記為已上傳
-      const details = result.details;
-      let successful = 0;
-      let failed = invalidCount;
-
-      const successResults = validItems.map((_, i) => {
-        const itemSuccess = details ? details[i]?.success !== false : result.success;
-        if (itemSuccess) {
-          successful++;
-        } else {
-          failed++;
-        }
-        return {
-          success: itemSuccess,
-          message: itemSuccess ? '上傳成功' : (details?.[i]?.error || '上傳失敗'),
-          timestamp: Date.now(),
-        };
-      });
+    if (result.success) {
+      // 批次上傳成功
+      const successResults = validItems.map(() => ({
+        success: true,
+        message: '上傳成功',
+        timestamp: Date.now(),
+      }));
 
       const invalidResults = Array(invalidCount).fill({
         success: false,
@@ -211,8 +199,8 @@ export async function uploadBatch(items: ScanHistoryItem[]): Promise<{
       });
 
       return {
-        successful,
-        failed,
+        successful: validItems.length,
+        failed: invalidCount,
         results: [...successResults, ...invalidResults],
       };
     }
