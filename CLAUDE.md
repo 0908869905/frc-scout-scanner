@@ -63,6 +63,7 @@ doPost() 接收資料上傳（match/path/pit/pit-external/batch）
 - Score Breakdown headers 動態產生（依遊戲規則而異）
 - 寫入策略：clear-and-replace（清除後批次寫入）
 - 時間守衛：追蹤執行時間，4分40秒前停止避免超時
+- 同步完成後自動更新 OPR Analysis（buildOPRSheet + calculateOPR），受時間守衛保護
 
 ### OPR Analysis（進攻效率值計算）
 
@@ -76,6 +77,8 @@ doPost() 接收資料上傳（match/path/pit/pit-external/batch）
 **執行函數**：
 1. `buildOPRSheet()` — 建立分頁，優先從 TBA Matches 帶入（含分數），無 TBA 時從 scouting Match Data 建立（分數留空）
 2. `calculateOPR()` — 讀取分數，矩陣運算 `x = (A^T·A)^(-1) · A^T·b`，寫入排名 + 預測分數
+
+**自動更新**：每次 TBA 同步（syncAllTBA）完成後，自動執行 buildOPRSheet + calculateOPR 更新 OPR Analysis 工作表，受時間守衛保護，失敗不影響 TBA 同步主流程
 
 **數學原理**：每場比賽 → 2 行（紅/藍），每隊一欄（在場=1），最小平方法求解各隊 OPR
 
@@ -143,6 +146,7 @@ frc-scout-scanner/
 │       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢、多路徑同時播放、來源標籤 SP/Pit、全部顯示/隱藏）
 ├── google-apps-script/
 │   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳 + TBA 同步 + OPR Analysis）
+│   ├── ManualOPR.gs       # 手動輸入版 OPR 分析（buildManualOPRSheet + calculateManualOPR，共用 Code.gs 矩陣運算）
 │   └── README.md          # 部署指南
 ├── CLAUDE.md              # Claude Code 指令（此檔案）
 ├── PROGRESS.md            # 開發進度追蹤
@@ -351,7 +355,7 @@ function MyComponent() {
 ## 注意事項
 
 1. **QR 資料是壓縮的**：不能直接讀取，必須用 `lz-string` 解壓
-2. **Match 和 Path QR 是分開的**：需要用 `eventCode + matchNumber + teamNumber` 配對
+2. **Match 和 Path QR 是分開的**：跨類型配對用 `eventCode + matchNumber + teamNumber`（field-by-field），同類型去重用 `eventCode + matchLevel + matchNumber + alliance + teamNumber`（getMatchKey 5 要素 key）
 3. **布林值格式**：TSV 中 "1" = true, "0" = false
 4. **空值格式**：空字串或 null 顯示為 "None"
 5. **React StrictMode**：會導致相機雙重初始化，已用 useRef 解決
@@ -361,4 +365,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-02-10*
+*最後更新：2026-03-14*

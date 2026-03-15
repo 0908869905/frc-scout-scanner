@@ -24,6 +24,9 @@
 16. [TBA ETag 快取陷阱（首次同步全部 not_modified）](#tba-etag-快取陷阱首次同步全部-not_modified)
 17. [Google Sheets 空白標頭導致查詢全部失敗](#google-sheets-空白標頭導致查詢全部失敗)
 18. [OPR (Offensive Power Rating) 計算架構](#opr-offensive-power-rating-計算架構)
+19. [Path QR Schema 不含 matchLevel 的設計影響](#path-qr-schema-不含-matchlevel-的設計影響)
+20. [Google Sheets deleteRows vs Range.clear() 與凍結行的交互作用](#google-sheets-deleterows-vs-rangeclear-與凍結行的交互作用)
+21. [後端 getMatchKey 覆蓋 Bug 與 Path QR 跨類型配對的完整修復](#後端-getmatchkey-覆蓋-bug-與-path-qr-跨類型配對的完整修復)
 
 ---
 
@@ -1405,6 +1408,207 @@ OPR Lookup 區使用 `FILTER` 公式查詢指定隊伍的所有出場記錄。�
 
 ---
 
+## Path QR Schema 不含 matchLevel 的設計影響
+
+### 發現日期：2026-02-12
+
+**來源**：診斷 Path QR 掃描成功但無法與 Match 合併的 Bug
+
+### 問題
+
+E017 修復（2026-02-05）在前端 `getMatchKey` 加入 `matchLevel` 解決了重複掃描誤判問題，但引入了一個副作用：Path QR 掃描後無法合併到 Match 記錄。
+
+### 原因分析
+
+FRC Scouting PASS 的 QR 設計中，**Path QR 的 schema 不包含 matchLevel 欄位**：
+
+```
+Match QR (21 欄位): scouterName, eventCode, matchLevel, matchNumber, alliance, teamNumber, ...
+Path QR  (5 欄位):  eventCode, matchNumber, teamNumber, alliance, autoPath
+                     ↑ 無 matchLevel！
+```
+
+這是上游 Scouting PASS app 的設計決策：Path QR 只記錄「哪場比賽、哪支隊伍的路徑」，不記錄比賽等級。這意味著：
+
+1. **前端 matchKey 不匹配**：`getMatchKey` 含 matchLevel 時，Path 的 key（matchLevel 為空）永遠無法匹配 Match 的 key（matchLevel 為 "PO" 等）
+2. **後端 matchKey 能匹配**：Code.gs 的 `getMatchKey` 不含 matchLevel，Path 和 Match 的 key 格式一致，合併正常
+
+### 解決方案
+
+前端的 path-to-match 配對改為 field-by-field 比較，只比較兩者都具備的共同欄位：
+
+```typescript
+// 不用 getMatchKey（Path 沒有 matchLevel）
+const matchRecord = currentHistory.find(
+  item => item.qrType === 'match'
+    && item.data.eventCode === pathData.eventCode
+    && item.data.matchNumber === pathData.matchNumber
+    && item.data.teamNumber === pathData.teamNumber
+);
+```
+
+### 設計啟示
+
+在 FRC 比賽數據系統中，存在兩種「唯一性」需求：
+
+| 場景 | 需要的 key 維度 | 說明 |
+|------|-----------------|------|
+| **同類型去重**（Match vs Match） | eventCode + matchLevel + matchNumber + teamNumber | 同類型 QR 都有 matchLevel，可以用完整 key |
+| **跨類型配對**（Path → Match） | eventCode + matchNumber + teamNumber | Path 沒有 matchLevel，只能用共同欄位 |
+
+**核心教訓**：不同 QR 類型的 schema 欄位不同。全域的 `getMatchKey` 函數適用於同類型去重，但不適用於跨類型配對。跨類型配對必須使用 field-by-field 比較，只比較雙方共有的欄位。
+
+### 關於後端 getMatchKey 不含 matchLevel 的取捨
+
+用戶決定後端 Code.gs 的 `getMatchKey` 保持不含 matchLevel。這有一個已知的副作用：不同比賽等級（如 Practice #5 和 Quals #5）的同隊記錄會互相覆蓋。但在實際使用情境中，這個風險可接受：
+
+1. 比賽現場通常不會同時上傳 Practice 和 Quals 的資料
+2. 保持 path 和 match 的 key 格式一致，確保後端路徑合併正常運作
+3. 如果未來需要區分，可以在後端也改為 field-by-field 比較
+
+---
+
+## Google Sheets deleteRows vs Range.clear() 與凍結行的交互作用
+
+### 發現日期：2026-03-04
+
+**來源**：TBA 同步觸發器靜默失敗，比賽數據停滯
+
+### 問題
+
+TBA 同步的 `writeSheetData` 使用 `sheet.deleteRows(2, sheet.getLastRow() - 1)` 實現 clear-and-replace 策略。當工作表第一行（標頭行）被凍結時，Google Sheets 不允許刪除所有非凍結行，拋出異常導致同步中斷。
+
+### 原因分析
+
+Google Sheets 的凍結行機制對 `deleteRows` 有一個限制：**不能刪除所有非凍結行**。這意味著如果第一行被凍結，`deleteRows(2, lastRow - 1)` 嘗試刪除從第 2 行到最後一行的所有資料行時，Google Sheets 會拒絕操作。
+
+這個限制不適用於 `Range.clear()`，因為 `clear()` 只清除儲存格內容（和格式），不改變工作表的行結構。
+
+```
+deleteRows：修改行結構 → 受凍結行限制 → 可能失敗
+Range.clear()：清除內容 → 不受凍結行限制 → 始終成功
+```
+
+### 解決方案
+
+將所有 `deleteRows` 呼叫替換為 `getRange().clear()`：
+
+```javascript
+// 修復前
+if (sheet.getLastRow() > 1) {
+  sheet.deleteRows(2, sheet.getLastRow() - 1);
+}
+
+// 修復後
+if (sheet.getLastRow() > 1) {
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
+}
+```
+
+### 差異比較
+
+| 特性 | deleteRows | Range.clear() |
+|------|-----------|---------------|
+| 行結構 | 刪除行，行數減少 | 保留行，只清空內容 |
+| 凍結行 | 不能刪除所有非凍結行 | 不受影響 |
+| 性能 | 刪除行後行號重排 | 清空內容較輕量 |
+| 空行 | 不留空行 | 會留下空白行（後續寫入覆蓋） |
+| clear-and-replace | 可能失敗 | 始終成功 |
+
+### 選擇理由
+
+- `Range.clear()` 雖然會留下空白行，但 TBA 同步緊接著會寫入新資料覆蓋這些行
+- 對於 clear-and-replace 策略，「清空再寫入」和「刪除再寫入」的最終效果相同
+- `Range.clear()` 不受凍結行限制，是更安全的選擇
+
+### 關鍵教訓
+
+1. **Google Sheets 的凍結行會影響行操作**：`deleteRows` 在凍結行場景下有隱含限制，不會在文檔中顯著提示
+2. **觸發器失敗是靜默的**：觸發器顯示 `triggerActive: true` 但每次執行都因異常而失敗，用戶只能通過觀察數據停滯才能發現問題
+3. **優先使用 `Range.clear()` 而非 `deleteRows`**：在 clear-and-replace 場景中，`Range.clear()` 更可靠且不受工作表結構限制
+
+---
+
+## 後端 getMatchKey 覆蓋 Bug 與 Path QR 跨類型配對的完整修復
+
+### 發現日期：2026-03-14
+
+**來源**：Finding #19 的後端修復延續 — 前端已在 2026-02-12 修復 path-to-match 配對，但後端 Code.gs 的 getMatchKey 仍缺少 matchLevel，導致不同比賽等級的 Match Data 互相覆蓋
+
+### 問題
+
+E021（2026-02-10）診斷出後端 `getMatchKey` 缺少 `matchLevel` 會導致不同比賽等級（Practice #5 vs Quals #5）的 Match Data 互相覆蓋。當時用戶決定不修，因為修改會破壞 Path QR 的合併（Path QR 無 matchLevel 欄位）。但覆蓋風險在 Magnolia Regional 真正比賽時不可接受。
+
+### 原因分析
+
+問題的核心矛盾：
+
+| 需求 | getMatchKey 含 matchLevel | getMatchKey 不含 matchLevel |
+|------|--------------------------|---------------------------|
+| Match 去重（同類型） | 正確區分不同等級 | 不同等級互相覆蓋 |
+| Path 合併（跨類型） | Path 無 matchLevel，key 不匹配 | Path 和 Match key 格式一致，合併正常 |
+
+之前的取捨是犧牲 Match 去重的正確性來保全 Path 合併。但這次修復同時解決了兩個需求。
+
+### 解決方案
+
+**分離兩種配對策略**：
+
+1. **`getMatchKey`（同類型去重）**：key 升級為 5 要素 `eventCode_matchLevel_matchNumber_alliance_teamNumber`，確保不同比賽等級不互相覆蓋
+
+2. **`findRowByMatchKey`（同類型去重的行查找）**：對應加入 matchLevel 和 alliance 欄位比對
+
+3. **`findMatchRowByFields`（跨類型配對，新函數）**：專為 Path QR 設計，使用 field-by-field 比較只比較 eventCode + matchNumber + teamNumber（Path 和 Match 共有的欄位），使用 `String()` 轉型確保型別安全
+
+4. **`handlePathData`**：改用 `findMatchRowByFields` 而非 `findRowByMatchKey`，解耦 path 合併和 match 去重
+
+```javascript
+// getMatchKey（同類型去重）— 5 要素完整 key
+function getMatchKey(data) {
+  return data.eventCode + '_' + data.matchLevel + '_' + data.matchNumber + '_' + data.alliance + '_' + data.teamNumber;
+}
+
+// findMatchRowByFields（跨類型配對）— field-by-field 比較
+function findMatchRowByFields(sheet, eventCode, matchNumber, teamNumber) {
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var ecIdx = headers.indexOf('eventCode');
+  var mnIdx = headers.indexOf('matchNumber');
+  var tnIdx = headers.indexOf('teamNumber');
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][ecIdx]) === String(eventCode) &&
+        String(data[i][mnIdx]) === String(matchNumber) &&
+        String(data[i][tnIdx]) === String(teamNumber)) {
+      return i + 1; // 1-based row number
+    }
+  }
+  return -1;
+}
+```
+
+### 設計啟示
+
+這次修復完成了 Finding #19 提出的「兩種唯一性需求」的完整解決方案：
+
+| 場景 | 修復前 | 修復後 |
+|------|--------|--------|
+| 前端 match 去重 | getMatchKey 含 matchLevel（E017 修復） | 不變 |
+| 前端 path-to-match 合併 | field-by-field 比較（Finding #19 修復） | 不變 |
+| **後端 match 去重** | **getMatchKey 不含 matchLevel（覆蓋！）** | **getMatchKey 含 matchLevel + alliance（正確）** |
+| **後端 path-to-match 合併** | **getMatchKey（與 match 共用）** | **findMatchRowByFields（獨立函數）** |
+
+**核心教訓**：前後端的「同類型去重」和「跨類型配對」是兩個不同的操作，需要不同的策略。用一個 `getMatchKey` 函數同時服務這兩個需求會導致矛盾。正確的做法是分離：去重用完整 key，跨類型配對用 field-by-field。
+
+### 為什麼加入 alliance 到 getMatchKey
+
+本次修復不只加入 matchLevel，還加入了 alliance。原因：在 FRC 比賽中，同一場比賽同一支隊伍理論上只會在一個聯盟位置，但不同 scouter 可能掃描同一場比賽的同一支隊伍（R1 位置 vs R2 位置）。加入 alliance 確保 5 要素 key 完全唯一，避免邊界情況下的覆蓋。
+
+### 為什麼 findMatchRowByFields 使用 String() 轉型
+
+Google Sheets 的 `getValues()` 可能將數字類的值（如 matchNumber "5"）以 Number 型別 `5` 回傳，而非字串 `"5"`。直接比較 `5 === "5"` 為 false。使用 `String()` 轉型確保比較時兩邊都是字串型別，避免型別不匹配導致的靜默失敗。
+
+---
+
 ## 參考資源
 
 - [SCANNER_INTEGRATION.md](./SCANNER_INTEGRATION.md) - 整合文件
@@ -1415,4 +1619,4 @@ OPR Lookup 區使用 `FILTER` 公式查詢指定隊伍的所有出場記錄。�
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-02-10 (OPR Analysis 計算架構)*
+*最後更新：2026-03-14 (後端 getMatchKey 覆蓋 Bug 與 Path QR 跨類型配對的完整修復)*

@@ -8,7 +8,147 @@
 
 **階段**：已部署上線 (Vercel)
 **完成度**：99%
-**最後更新**：2026-02-10 (上傳失敗問題診斷)
+**最後更新**：2026-03-14 (Manual OPR 手動輸入分頁)
+
+---
+
+## Session: 2026-03-14 (Manual OPR 手動輸入分頁)
+
+### 完成項目
+- [x] 研究 Code.gs 中完整的 OPR 分析功能架構
+- [x] 新增 ManualOPR.gs：手動輸入版 OPR 分析，獨立檔案不修改 Code.gs
+- [x] buildManualOPRSheet()：建立「Manual OPR」分頁，三區塊佈局與 OPR Analysis 完全相同
+- [x] calculateManualOPR()：從手動填入的資料計算 OPR 排名和預測分數
+- [x] 共用 Code.gs 的 solveOPR、setupOPRLookupFormulas、OPR_HEADERS_A/B
+- [x] Code Review：修正 Logger.log → console.log、移除重複的 setupManualOPRLookupFormulas
+
+### 修改檔案（1 個新增）
+- `google-apps-script/ManualOPR.gs` - 新增：手動輸入 OPR 分析（buildManualOPRSheet + calculateManualOPR，共用 Code.gs 矩陣運算和公式函數）
+
+### 5-Question Reboot Check
+1. **做什麼？** 新增 ManualOPR.gs，提供純手動輸入的 OPR 分析功能，不依賴 TBA 或 Scouting 資料
+2. **進度？** 已完成，Code Review 通過
+3. **下一步？** (1) 在 Google Apps Script 編輯器新增 ManualOPR 檔案 (2) 貼上 ManualOPR.gs 內容 (3) 執行 buildManualOPRSheet() 建立分頁 (4) 手動填入比賽資料測試 (5) 執行 calculateManualOPR() 驗證計算
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/ManualOPR.gs`（buildManualOPRSheet、calculateManualOPR）
+
+---
+
+## Session: 2026-03-14 (getMatchKey 覆蓋 Bug 修復 + Magnolia Regional 準備)
+
+### 完成項目
+- [x] 查詢 Magnolia Regional 2026 賽事資訊（event key: `2026mslr`，地點 Laurel, Mississippi，日期 2026-03-18 ~ 2026-03-21，46 支隊伍）
+- [x] 確認 FRC 6998 Unipards 在參賽名單中
+- [x] 指導用戶將 Code.gs 的 `TBA_CONFIG.EVENT_KEY` 從 `2026tuis` 改為 `2026mslr`
+- [x] 用 TBA API 驗證了所有 6 個 endpoint（teams/matches/rankings/oprs/alliances/awards）都回傳 HTTP 200
+- [x] 說明部署後需執行 `forceSyncTBA()` 清除舊 ETag 快取
+- [x] 修復 Code.gs `getMatchKey`：key 格式從 `eventCode_matchNumber_teamNumber` 改為 `eventCode_matchLevel_matchNumber_alliance_teamNumber`（5 要素完整 key）
+- [x] 修復 Code.gs `findRowByMatchKey`：對應加入 `matchLevelIdx` 和 `allianceIdx` 欄位比對
+- [x] 新增 Code.gs `findMatchRowByFields`：Path QR 不含 matchLevel，path-to-match 合併改用此函數，field-by-field 比較 eventCode + matchNumber + teamNumber，使用 String() 轉型
+- [x] 修復 `handlePathData`：從 `getMatchKey(data)` + `findRowByMatchKey()` 改為 `findMatchRowByFields(matchSheet, data.eventCode, data.matchNumber, data.teamNumber)`
+- [x] 修正 `setupTBATrigger` log："every 5 minutes" 改為 "every 1 minute"（配合實際觸發間隔）
+- [x] Code Review 全部 8 項通過，確認安全可部署
+
+### 修改檔案（1 個）
+- `google-apps-script/Code.gs` - getMatchKey 加入 matchLevel + alliance（5 要素 key）、findRowByMatchKey 加入對應欄位比對、新增 findMatchRowByFields（Path 用 field-by-field 比較）、handlePathData 改用 findMatchRowByFields、setupTBATrigger log 修正
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復後端 getMatchKey 覆蓋 Bug（不同比賽等級同場次號碼的資料互相覆蓋）+ 切換 TBA 同步目標到 Magnolia Regional 2026
+2. **進度？** Code.gs 已修改完成，Code Review 通過。需要用戶在 Google Apps Script 編輯器中更新 Code.gs 並重新部署
+3. **下一步？** (1) 更新 Code.gs 到 Google Apps Script 編輯器 (2) 修改 EVENT_KEY 為 2026mslr (3) 重新部署新版本 (4) 執行 forceSyncTBA() 清除舊 ETag (5) 確認 TBA 同步正常抓取 Magnolia Regional 資料
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/Code.gs`（getMatchKey、findRowByMatchKey、findMatchRowByFields、handlePathData、setupTBATrigger、TBA_CONFIG.EVENT_KEY）
+
+---
+
+## Session: 2026-03-05 (TBA 同步自動更新 OPR Analysis)
+
+### 完成項目
+- [x] 確認 TBA 自動同步（syncAllTBA）不會自動更新 OPR Analysis 工作表
+- [x] 修改 `syncAllTBA()` 函數：在 7 個 TBA 工作表同步完成後，新增第 8 步自動執行 `buildOPRSheet()` + `calculateOPR()`
+- [x] OPR 自動更新受 `timeOk()` 時間守衛保護，確保不會超過 Apps Script 6 分鐘執行限制
+- [x] OPR 自動更新用 try-catch 包裹，失敗不影響 TBA 同步主流程
+- [x] 更新 `google-apps-script/README.md`：OPR Analysis 區塊新增「自動更新」說明段落
+
+### 修改檔案（2 個）
+- `google-apps-script/Code.gs` - `syncAllTBA()` 函數新增第 8 步：TBA 同步後自動執行 `buildOPRSheet()` + `calculateOPR()`，受 `timeOk()` 守衛保護，try-catch 包裹
+- `google-apps-script/README.md` - OPR Analysis 區塊新增「自動更新」說明（每次 TBA 同步後自動重建 + 重算 OPR）
+
+### 5-Question Reboot Check
+1. **做什麼？** 讓 TBA 自動同步（syncAllTBA）在完成 7 個工作表同步後，自動更新 OPR Analysis 工作表
+2. **進度？** 已完成，Code.gs 和 README.md 已修改
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（新版本），觀察觸發器執行後 OPR Analysis 是否自動更新
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/Code.gs`（syncAllTBA 第 8 步 OPR 更新），`google-apps-script/README.md`（自動更新說明）
+
+---
+
+## Session: 2026-03-04 (凍結行 Bug 修復)
+
+### 完成項目
+- [x] 發現 TBA 觸發器雖然 `triggerActive: true`，但實際同步失敗 — 比賽已到第 37 場但試算表停在 29 場
+- [x] 手動執行 `forceSyncTBA` 觸發錯誤：`Exception: 很抱歉，你無法刪除所有非凍結的列。`
+- [x] 根因分析：`writeSheetData` 中的 `sheet.deleteRows(2, sheet.getLastRow() - 1)` 在標頭行被凍結時，Google Sheets 不允許刪除所有非凍結行
+- [x] 修復 `writeSheetData`（第 1518 行）：`deleteRows` 改為 `getRange().clear()`
+- [x] 全面掃描 Code.gs，發現 `clearTestData`（第 1393 行）也有同樣問題，一併修復
+- [x] 確認 doPost 上傳相關函式（handleMatchData/handlePathData/handlePitData）使用 append/update 方式，不受凍結行影響
+- [x] 確認整份 Code.gs 已無任何 `deleteRows` 呼叫
+
+### 修改檔案（1 個）
+- `google-apps-script/Code.gs` - 第 1393 行 `clearTestData()` 和第 1518 行 `writeSheetData()`：`deleteRows` 改為 `getRange().clear()`，避免凍結行導致的刪除失敗
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 TBA 同步因 Google Sheets 凍結行導致 `deleteRows` 失敗的 Bug
+2. **進度？** 已完成，Code.gs 中所有 `deleteRows` 已替換為 `getRange().clear()`
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（新版本）、執行 `forceSyncTBA` 驗證修復、確認觸發器恢復正常同步
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/Code.gs`（writeSheetData + clearTestData）
+
+---
+
+## Session: 2026-03-04 (TBA 同步測試 - 伊斯坦堡區域賽)
+
+### 完成項目
+- [x] 將 Code.gs 的 `TBA_CONFIG.EVENT_KEY` 從 `2025mslr` 改為 `2026tuis`（伊斯坦堡區域賽 Istanbul Regional）
+- [x] 指導用戶在 Google Apps Script 編輯器中完成部署和授權流程
+- [x] 透過 `?action=tbaStatus` 驗證 TBA 同步正常運作：32 隊、64 場比賽、50 筆 Score Breakdown、32 筆 Rankings、32 筆 OPRs（Alliances=0、Awards=0，因比賽仍在進行中）
+- [x] 確認觸發器為 Google 伺服器端執行，關機不影響自動同步
+- [x] 討論觸發器頻率（5 分鐘 vs 1 分鐘），用戶有意改為 1 分鐘但尚未確認成功生效
+
+### 修改檔案（1 個）
+- `google-apps-script/Code.gs` - 第 1409 行 `TBA_CONFIG.EVENT_KEY` 從 `'2025mslr'` 改為 `'2026tuis'`
+
+### 5-Question Reboot Check
+1. **做什麼？** 測試 TBA 自動同步功能，使用正在進行中的伊斯坦堡區域賽（2026tuis）作為測試目標
+2. **進度？** 同步驗證成功，觸發器運作中，觸發器頻率修改待確認
+3. **下一步？** 確認觸發器頻率是否已改為 1 分鐘（用戶需在 Apps Script 編輯器中檢查 trigger log）、比賽結束後確認 Alliances 和 Awards 是否同步、準備下一場實際比賽的完整 scouting 測試
+4. **阻礙？** 觸發器頻率修改結果不明（log 仍顯示 5 minutes），需用戶在 Apps Script 編輯器中刪除舊觸發器並重新設定
+5. **檔案？** `google-apps-script/Code.gs`（TBA_CONFIG.EVENT_KEY 設定）
+
+---
+
+## Session: 2026-02-12 (Path 合併 Bug 修復 + E021/E022 還原)
+
+### 完成項目
+- [x] Revert commit (cbe6157): 從 Code.gs getMatchKey 移除 matchLevel、刪除 findMatchRowByPathData、簡化 batch 回應（用戶決定不加 matchLevel 到後端 getMatchKey，不加 batch details）
+- [x] 診斷 Path QR 掃描成功但無法與 Match 合併的 Bug
+- [x] 發現根本原因：前端 `decoder.ts` 的 `getMatchKey` 包含 `matchLevel`，但 Path QR schema 沒有 `matchLevel` 欄位，導致 Path matchKey（如 `2026NK__4_9126`）永遠無法匹配 Match matchKey（如 `2026NK_PO_4_9126`）
+- [x] 修復：`ScanPage.tsx` 的 path-to-match 配對改為 field-by-field 比較（eventCode + matchNumber + teamNumber），不依賴 matchKey
+- [x] 確認後端 Code.gs 在 revert 後邏輯正確（getMatchKey 不含 matchLevel，path 和 match 的 key 能匹配）
+- [x] Commit cbe6157: revert（Code.gs + sheets.ts 還原）
+- [x] Commit f833efa: fix: use field-by-field comparison for path-to-match merging
+
+### 修改檔案（3 個）
+- `src/pages/ScanPage.tsx` - path-to-match 配對從 matchKey 比較改為 field-by-field 比較（eventCode + matchNumber + teamNumber）
+- `google-apps-script/Code.gs` - revert：移除 matchLevel from getMatchKey、刪除 findMatchRowByPathData、簡化 batch 回應
+- `src/utils/sheets.ts` - revert：簡化 batch 回應處理
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 Path QR 掃描後無法與 Match 合併的 Bug，根因是前端 matchKey 含 matchLevel 但 Path QR 不含此欄位
+2. **進度？** 已完成，commits cbe6157 + f833efa 已 push 到 main
+3. **下一步？** 重新部署 Code.gs 到 Google Apps Script（revert 版本）、重新部署到 Vercel、實際測試 Path QR 掃描後合併到 Match 的流程
+4. **阻礙？** 無
+5. **檔案？** `src/pages/ScanPage.tsx`（path-to-match field-by-field 比較），`google-apps-script/Code.gs`（revert 後的 getMatchKey），`src/utils/sheets.ts`（簡化 batch 回應）
 
 ---
 
@@ -696,7 +836,7 @@ frc-scout-scanner/
 - doGet() 支援 action 參數路由：無 action 時回傳 API 狀態，`action=queryPaths` 查詢路徑資料，`action=tbaStatus` 查詢 TBA 同步狀態，`action=tbaSync` 觸發手動同步，`action=debug` 回傳工作表概況，`action=fixHeaders` 自動修復空白標頭
 - matchLevel 實際值為縮寫：'P'（Practice）、'QM'（Quals）、'PO'（Playoff）、'X'（Exhibition），不是全名
 - getOrCreateSheet 含防禦性標頭檢查：已存在的工作表若標頭全為空字串會自動修復
-- TBA 自動同步：7 個同步函式（Teams/Matches/ScoreBreakdown/Rankings/OPRs/Alliances/Awards）、ETag 快取、syncAllTBA 協調器（時間守衛 280 秒）
+- TBA 自動同步：7 個同步函式（Teams/Matches/ScoreBreakdown/Rankings/OPRs/Alliances/Awards）、ETag 快取、syncAllTBA 協調器（時間守衛 280 秒）、同步後自動更新 OPR Analysis
 - TBA 工作表：TBA Teams, TBA Matches, TBA Score Breakdown, TBA Rankings, TBA OPRs, TBA Alliances, TBA Awards
 - OPR Analysis：最小二乘法求解 (A^T * A)^-1 * A^T * b，支援 TBA 資料和 Scouting 資料兩種來源，OPR Analysis 工作表三區塊佈局（OPR 排名 + 預測分數 + Lookup/Filter 公式）
 

@@ -356,7 +356,11 @@ OPR（Offensive Power Rating）用最小平方法計算每支隊伍在每場比�
 - **Section B（N-R 欄）**：OPR 排名（依 OPR 值降序）
 - **Section C（T-Z 欄）**：隊伍查詢（輸入隊號，自動顯示 OPR、排名、比賽紀錄）
 
-### 使用方式
+### 自動更新
+
+TBA 自動同步觸發器每次執行後，會自動重新計算 OPR Analysis（`buildOPRSheet` + `calculateOPR`），無需手動操作。只要 TBA Matches 有新比賽分數，OPR 排名和預測分數就會自動更新。
+
+### 手動使用
 
 #### 方式一：有 TBA 資料（推薦）
 

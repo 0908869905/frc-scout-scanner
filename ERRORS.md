@@ -59,8 +59,11 @@
 | E018 | Apps Script | Google Sheets 標頭行全空導致 queryPaths 回傳 0 筆 | 2026-02-06 | 已解決 |
 | E019 | UI | matchLevel dropdown 值與實際 QR 資料不一致 | 2026-02-06 | 已解決 |
 | E020 | Apps Script | VLOOKUP 無法查詢非第一欄的資料，OPR Lookup 公式失效 | 2026-02-10 | 已解決 |
-| E021 | Apps Script | Code.gs getMatchKey 缺少 matchLevel 導致不同比賽等級的 Match Data 互相覆蓋 | 2026-02-10 | 進行中 |
-| E022 | Apps Script | Batch 上傳回應永遠 success:true 導致前端無法偵測個別項目失敗 | 2026-02-10 | 進行中 |
+| E021 | Apps Script | Code.gs getMatchKey 缺少 matchLevel 導致不同比賽等級的 Match Data 互相覆蓋 | 2026-02-10 | 已解決（E025） |
+| E022 | Apps Script | Batch 上傳回應永遠 success:true 導致前端無法偵測個別項目失敗 | 2026-02-10 | 已還原（不修） |
+| E023 | Logic | 前端 matchKey 含 matchLevel 但 Path QR 無此欄位，導致 path-to-match 合併永遠失敗 | 2026-02-12 | 已解決 |
+| E024 | Apps Script | Google Sheets 凍結行導致 deleteRows 失敗，TBA 同步中斷 | 2026-03-04 | 已解決 |
+| E025 | Apps Script | Code.gs getMatchKey 缺少 matchLevel + alliance 導致不同比賽等級的 Match Data 互相覆蓋（E021 重新修復） | 2026-03-14 | 已解決 |
 
 ---
 
@@ -834,7 +837,11 @@ OPR Analysis 工作表的 Lookup 公式區輸入 teamNumber 後，VLOOKUP 回傳
 
 **日期**：2026-02-10
 **嚴重程度**：高
-**狀態**：進行中
+**狀態**：已解決（E025）
+
+> **2026-02-12 更新**：用戶決定不加 matchLevel 到後端 getMatchKey。原因：後端 getMatchKey 不含 matchLevel 時，path 和 match 的 key 格式一致（都是 `eventCode_matchNumber_teamNumber`），路徑合併邏輯能正常運作。加入 matchLevel 反而會導致 Path QR（無 matchLevel 欄位）無法匹配 Match 記錄。已透過 commit cbe6157 revert 相關修改。
+>
+> **2026-03-14 更新**：E025 重新修復。將 getMatchKey 改為 5 要素 key（含 matchLevel + alliance），同時新增 `findMatchRowByFields` 函數專為 Path QR 跨類型配對使用 field-by-field 比較，解決了之前「修 match 去重會破壞 path 合併」的矛盾。
 
 **錯誤訊息**：
 ```
@@ -878,7 +885,9 @@ function getMatchKey(data) {
 
 **日期**：2026-02-10
 **嚴重程度**：高
-**狀態**：進行中
+**狀態**：已還原（不修）
+
+> **2026-02-12 更新**：用戶決定不加 batch details 到回應中。已透過 commit cbe6157 revert 相關修改（sheets.ts 簡化 batch 回應處理）。目前 batch 上傳維持原有行為：頂層 success:true 即視為全部成功。
 
 **錯誤訊息**：
 ```
@@ -920,6 +929,148 @@ return ContentService.createTextOutput(JSON.stringify({
 **相關檔案**：
 - google-apps-script/Code.gs（doPost batch 處理，第 679 行）
 - src/utils/sheets.ts（uploadBatch 回應解析，第 187 行）
+
+---
+
+### [E023] 前端 matchKey 含 matchLevel 但 Path QR 無此欄位，導致 path-to-match 合併永遠失敗
+
+**日期**：2026-02-12
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+掃描 Path QR 後，前端無法將路徑合併到對應的 Match 記錄。
+Path matchKey: "2026NK__4_9126"（matchLevel 為空）
+Match matchKey: "2026NK_PO_4_9126"（matchLevel 為 "PO"）
+兩者永遠不相等。
+```
+
+**根本原因**：
+- E017 修復（2026-02-05）在前端 `decoder.ts` 的 `getMatchKey` 加入了 `matchLevel`：`eventCode_matchLevel_matchNumber_teamNumber`
+- 但 Path QR schema（5 欄位：eventCode, matchNumber, teamNumber, alliance, autoPath）**沒有 matchLevel 欄位**
+- 當 Path QR 被解碼後，`data.matchLevel` 是 `undefined`，生成的 matchKey 為 `eventCode__matchNumber_teamNumber`（matchLevel 位置為空）
+- Match QR 有 matchLevel，生成的 matchKey 為 `eventCode_PO_matchNumber_teamNumber`
+- `ScanPage.tsx` 的 path-to-match 配對使用 `getMatchKey(pathData) === getMatchKey(matchData)` 比較，永遠不相等
+- 這是 E017 修復的副作用：加入 matchLevel 解決了重複掃描誤判，但破壞了 path-to-match 合併
+
+**解決方案**：
+```typescript
+// ScanPage.tsx 的 path-to-match 配對：改為 field-by-field 比較
+// 不依賴 matchKey（因為 Path 沒有 matchLevel 欄位）
+const matchRecord = currentHistory.find(
+  item => item.qrType === 'match'
+    && item.data.eventCode === pathData.eventCode
+    && item.data.matchNumber === pathData.matchNumber
+    && item.data.teamNumber === pathData.teamNumber
+);
+```
+
+**預防措施**：
+- 不同 QR 類型的 schema 欄位不同，跨類型配對時不能依賴 `getMatchKey`（它假設所有類型都有 matchLevel）
+- 跨類型配對（如 path-to-match）應使用 field-by-field 比較，只比較兩者都具備的共同欄位
+- 修改 `getMatchKey` 等全域函數時，必須檢查所有使用該函數的地方，確認各 QR 類型的 schema 是否都包含所需欄位
+
+**相關檔案**：
+- src/pages/ScanPage.tsx（path-to-match 配對邏輯）
+- src/utils/decoder.ts（getMatchKey 函數）
+- src/constants/schema.ts（Path QR schema 無 matchLevel 欄位）
+
+---
+
+### [E024] Google Sheets 凍結行導致 deleteRows 失敗，TBA 同步中斷
+
+**日期**：2026-03-04
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+Exception: 很抱歉，你無法刪除所有非凍結的列。
+發生在 writeSheetData 的 sheet.deleteRows(2, sheet.getLastRow() - 1)
+```
+
+**根本原因**：
+- TBA 同步使用 clear-and-replace 策略：先刪除舊資料行，再寫入新資料
+- `writeSheetData` 中使用 `sheet.deleteRows(2, sheet.getLastRow() - 1)` 刪除所有資料行
+- 當工作表的標頭行（第 1 行）被凍結時，Google Sheets 不允許刪除**所有**非凍結行
+- 這導致 `writeSheetData` 拋出異常，TBA 同步在該工作表失敗後中斷
+- 觸發器雖然顯示 `triggerActive: true`，但每次執行都因此錯誤而失敗，導致試算表資料停滯
+
+**解決方案**：
+```javascript
+// 修復前（錯誤）：刪除行 — 凍結行場景下會失敗
+if (sheet.getLastRow() > 1) {
+  sheet.deleteRows(2, sheet.getLastRow() - 1);
+}
+
+// 修復後（正確）：清除內容而非刪除行 — 不受凍結行影響
+if (sheet.getLastRow() > 1) {
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
+}
+```
+
+同時修復了 `clearTestData()` 函數中相同的 `deleteRows` 呼叫。
+
+**預防措施**：
+- 在 Google Sheets 中，`deleteRows` 在凍結行場景下有限制，應優先使用 `getRange().clear()` 清除內容
+- `clear()` 清除的是儲存格內容和格式，但保留行本身，不受凍結行影響
+- clear-and-replace 策略中，「clear」應使用 `Range.clear()` 而非 `Sheet.deleteRows()`
+- 全面檢查 Code.gs 中所有 `deleteRows` 呼叫，確保沒有遺漏
+
+**相關檔案**：
+- google-apps-script/Code.gs（writeSheetData 第 1518 行、clearTestData 第 1393 行）
+
+---
+
+### [E025] Code.gs getMatchKey 缺少 matchLevel + alliance 導致不同比賽等級的 Match Data 互相覆蓋（E021 重新修復）
+
+**日期**：2026-03-14
+**嚴重程度**：高
+**狀態**：已解決
+
+**錯誤訊息**：
+```
+不同比賽等級（如 Practice #5 和 Quals #5）的同隊 Match Data 上傳後互相覆蓋，試算表只保留最後一筆
+getMatchKey 只用 eventCode_matchNumber_teamNumber，無法區分不同 matchLevel
+```
+
+**根本原因**：
+- E021（2026-02-10）首次發現此問題，但因修復會破壞 Path QR 合併而 revert
+- 根本矛盾：`getMatchKey` 被同時用於 match 去重（需要 matchLevel）和 path-to-match 合併（Path QR 無 matchLevel），兩個需求互相衝突
+- 之前的解法只能二擇一，犧牲了 match 去重的正確性
+
+**解決方案**：
+分離「同類型去重」和「跨類型配對」為兩個獨立策略：
+
+```javascript
+// 1. getMatchKey（同類型去重）— 5 要素完整 key
+function getMatchKey(data) {
+  return data.eventCode + '_' + data.matchLevel + '_' + data.matchNumber + '_' + data.alliance + '_' + data.teamNumber;
+}
+
+// 2. findRowByMatchKey — 對應 5 要素比對
+function findRowByMatchKey(sheet, matchKey, data) {
+  // 比對 eventCode, matchLevel, matchNumber, alliance, teamNumber 五個欄位
+}
+
+// 3. findMatchRowByFields（新函數，跨類型配對）— 只比較共有欄位
+function findMatchRowByFields(sheet, eventCode, matchNumber, teamNumber) {
+  // field-by-field 比較，使用 String() 轉型確保型別安全
+}
+
+// 4. handlePathData — 改用 findMatchRowByFields
+var matchRow = findMatchRowByFields(matchSheet, data.eventCode, data.matchNumber, data.teamNumber);
+```
+
+**預防措施**：
+- 「同類型去重」和「跨類型配對」是不同操作，必須用不同函數
+- 前後端的 matchKey 邏輯修改時，要同時考慮 Path QR 等不含完整欄位的類型
+- 使用 `String()` 轉型防止 Google Sheets `getValues()` 回傳 Number 型別導致比較失敗
+- 此修復也對應了前端 Finding #19 的模式：前端 ScanPage.tsx 在 2026-02-12 已用相同的 field-by-field 策略修復
+
+**相關檔案**：
+- google-apps-script/Code.gs（getMatchKey、findRowByMatchKey、findMatchRowByFields、handlePathData）
 
 ---
 
@@ -1039,10 +1190,11 @@ if (!decompressed) {
 
 | 類型 | 數量 |
 |------|------|
-| 總錯誤數 | 22 |
-| 已解決 | 20 |
-| 進行中 | 2 |
-| 高嚴重度 | 12 |
+| 總錯誤數 | 25 |
+| 已解決 | 24 |
+| 已還原（不修） | 1 |
+| 進行中 | 0 |
+| 高嚴重度 | 15 |
 | 中嚴重度 | 8 |
 | 低嚴重度 | 2 |
 
@@ -1057,4 +1209,4 @@ if (!decompressed) {
 ---
 
 *此檔案在每次遇到錯誤時更新*
-*最後更新：2026-02-10*
+*最後更新：2026-03-14*

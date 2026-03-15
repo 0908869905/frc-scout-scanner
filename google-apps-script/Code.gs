@@ -743,10 +743,10 @@ function handlePathData(data) {
   // 如果啟用自動合併，嘗試將 Path 合併到對應的 Match 或 Pit
   if (CONFIG.AUTO_MERGE_PATH) {
     // 1. 先嘗試合併到 Match（Scouting PASS 的 path）
+    // Path QR 不含 matchLevel，使用 field-by-field 比較
     const matchSheet = getSheet(CONFIG.SHEET_MATCH);
     if (matchSheet) {
-      const matchKey = getMatchKey(data);
-      const matchRow = findRowByMatchKey(matchSheet, matchKey);
+      const matchRow = findMatchRowByFields(matchSheet, data.eventCode, data.matchNumber, data.teamNumber);
 
       if (matchRow > 0) {
         // 找到對應的 Match，更新 autoPath 欄位
@@ -986,9 +986,10 @@ function getRowData(sheet, rowNumber, headers) {
 
 /**
  * 產生 Match Key（用於識別唯一比賽紀錄）
+ * 包含 matchLevel + alliance，確保不同比賽等級/聯盟位置不會互相覆蓋
  */
 function getMatchKey(data) {
-  return `${data.eventCode || ''}_${data.matchNumber || ''}_${data.teamNumber || ''}`;
+  return `${data.eventCode || ''}_${data.matchLevel || ''}_${data.matchNumber || ''}_${data.alliance || ''}_${data.teamNumber || ''}`;
 }
 
 /**
@@ -997,13 +998,36 @@ function getMatchKey(data) {
 function findRowByMatchKey(sheet, matchKey) {
   const data = sheet.getDataRange().getValues();
   const eventCodeIdx = SHEET_HEADERS.MATCH.indexOf('eventCode');
+  const matchLevelIdx = SHEET_HEADERS.MATCH.indexOf('matchLevel');
+  const matchNumberIdx = SHEET_HEADERS.MATCH.indexOf('matchNumber');
+  const allianceIdx = SHEET_HEADERS.MATCH.indexOf('alliance');
+  const teamNumberIdx = SHEET_HEADERS.MATCH.indexOf('teamNumber');
+
+  for (let i = 1; i < data.length; i++) {
+    const rowKey = `${data[i][eventCodeIdx]}_${data[i][matchLevelIdx]}_${data[i][matchNumberIdx]}_${data[i][allianceIdx]}_${data[i][teamNumberIdx]}`;
+    if (rowKey === matchKey) {
+      return i + 1; // 列號從 1 開始
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * 根據個別欄位尋找 Match 列號（用於 Path 合併）
+ * Path QR 不含 matchLevel，因此只比較 eventCode + matchNumber + teamNumber
+ */
+function findMatchRowByFields(sheet, eventCode, matchNumber, teamNumber) {
+  const data = sheet.getDataRange().getValues();
+  const eventCodeIdx = SHEET_HEADERS.MATCH.indexOf('eventCode');
   const matchNumberIdx = SHEET_HEADERS.MATCH.indexOf('matchNumber');
   const teamNumberIdx = SHEET_HEADERS.MATCH.indexOf('teamNumber');
 
   for (let i = 1; i < data.length; i++) {
-    const rowKey = `${data[i][eventCodeIdx]}_${data[i][matchNumberIdx]}_${data[i][teamNumberIdx]}`;
-    if (rowKey === matchKey) {
-      return i + 1; // 列號從 1 開始
+    if (String(data[i][eventCodeIdx]) === String(eventCode) &&
+        String(data[i][matchNumberIdx]) === String(matchNumber) &&
+        String(data[i][teamNumberIdx]) === String(teamNumber)) {
+      return i + 1;
     }
   }
 
@@ -1390,7 +1414,7 @@ function clearTestData() {
   [CONFIG.SHEET_MATCH, CONFIG.SHEET_PATH, CONFIG.SHEET_PIT].forEach(sheetName => {
     const sheet = ss.getSheetByName(sheetName);
     if (sheet && sheet.getLastRow() > 1) {
-      sheet.deleteRows(2, sheet.getLastRow() - 1);
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
     }
   });
 
@@ -1406,7 +1430,7 @@ function clearTestData() {
  */
 var TBA_CONFIG = {
   BASE_URL: 'https://www.thebluealliance.com/api/v3',
-  EVENT_KEY: '2025mslr',
+  EVENT_KEY: '2026mslr',
 
   // 工作表名稱
   SHEET_TEAMS: 'TBA Teams',
@@ -1515,7 +1539,7 @@ function writeSheetData(sheetName, headers, rows) {
 
   // 清除標題以下所有資料
   if (sheet.getLastRow() > 1) {
-    sheet.deleteRows(2, sheet.getLastRow() - 1);
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
   }
 
   // 批次寫入
@@ -1902,6 +1926,17 @@ function syncAllTBA() {
     logResult('Awards', awardsResult);
   }
 
+  // 8. OPR Analysis（自動重算）
+  if (timeOk()) {
+    try {
+      buildOPRSheet();
+      calculateOPR();
+      console.log('OPR Analysis: updated');
+    } catch (oprErr) {
+      console.log('OPR Analysis: ERROR - ' + oprErr.message);
+    }
+  }
+
   var totalMs = elapsed();
   console.log('=== TBA Sync Complete: ' + totalMs + 'ms ===');
 
@@ -1966,10 +2001,10 @@ function setupTBATrigger() {
 
   ScriptApp.newTrigger('syncAllTBA')
     .timeBased()
-    .everyMinutes(5)
+    .everyMinutes(1)
     .create();
 
-  console.log('TBA auto-sync trigger created (every 5 minutes).');
+  console.log('TBA auto-sync trigger created (every 1 minute).');
 }
 
 /**
