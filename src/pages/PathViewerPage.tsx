@@ -26,7 +26,13 @@ interface PathData {
   flipped: boolean;
   source: PathSource;
   queryKey?: string; // 用於重複偵測（查詢結果才有）
+  teamNumber?: string;
+  matchLevel?: string;
+  matchNumber?: string;
 }
+
+type TypeFilterValue = 'pit' | 'P' | 'QM' | 'PO';
+const ALL_TYPE_FILTERS: TypeFilterValue[] = ['pit', 'P', 'QM', 'PO'];
 
 // activeAnims: pathId → current step（在 map 裡的路徑 = 正在播放）
 type ActiveAnims = Record<string, number>;
@@ -107,12 +113,25 @@ export function PathViewerPage() {
 
   // --- View State ---
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'red' | 'blue'>('all');
+  const [activeTypes, setActiveTypes] = useState<Set<TypeFilterValue>>(() => new Set(ALL_TYPE_FILTERS));
+  const [labelVisibleIds, setLabelVisibleIds] = useState<Record<string, boolean>>({});
 
   // --- Animation State（多路徑同時播放）---
   const [activeAnims, setActiveAnims] = useState<ActiveAnims>({});
 
   // --- Refs ---
   const fieldRef = useRef<HTMLDivElement>(null);
+
+  // === Filter Helper ===
+
+  const isPathFiltered = useCallback((p: PathData): boolean => {
+    if (visibilityFilter !== 'all' && p.alliance !== visibilityFilter) return true;
+    // Multi-select: all selected or empty = show all
+    if (activeTypes.size === ALL_TYPE_FILTERS.length || activeTypes.size === 0) return false;
+    if (p.source === 'pit') return !activeTypes.has('pit');
+    if (!p.source) return false; // manually added paths always visible
+    return !activeTypes.has((p.matchLevel || '') as TypeFilterValue);
+  }, [visibilityFilter, activeTypes]);
 
   // === Effects ===
 
@@ -195,6 +214,7 @@ export function PathViewerPage() {
       return {
         id: Date.now().toString() + '_' + p.teamNumber + '_' + (isPit ? 'pit' + pitCount : p.matchLevel + p.matchNumber),
         name, coords: p.autoPath, color, alliance, visible: true, flipped: false, source, queryKey,
+        teamNumber: p.teamNumber, matchLevel: p.matchLevel || '', matchNumber: p.matchNumber || '',
       };
     });
 
@@ -304,12 +324,12 @@ export function PathViewerPage() {
     if (anyPlaying) {
       setActiveAnims({});
     } else {
-      const visible = paths.filter(p => p.visible && (visibilityFilter === 'all' || p.alliance === visibilityFilter));
+      const visible = paths.filter(p => p.visible && !isPathFiltered(p));
       const anims: ActiveAnims = {};
       visible.forEach(p => { if (parsePathString(p.coords).length >= 2) anims[p.id] = 0; });
       setActiveAnims(anims);
     }
-  }, [activeAnims, paths, visibilityFilter]);
+  }, [activeAnims, paths, isPathFiltered]);
 
   // === Export Handler ===
 
@@ -328,7 +348,7 @@ export function PathViewerPage() {
     ctx.drawImage(img, 0, 0, 2000, 1000);
 
     // 繪製可見路徑
-    const visiblePaths = paths.filter(p => p.visible && (visibilityFilter === 'all' || p.alliance === visibilityFilter));
+    const visiblePaths = paths.filter(p => p.visible && !isPathFiltered(p));
     visiblePaths.forEach(path => {
       const rawPts = parsePathString(path.coords);
       if (rawPts.length < 2) return;
@@ -393,7 +413,7 @@ export function PathViewerPage() {
 
   // === Computed ===
 
-  const visibleCount = paths.filter(p => p.visible && (visibilityFilter === 'all' || p.alliance === visibilityFilter)).length;
+  const visibleCount = paths.filter(p => p.visible && !isPathFiltered(p)).length;
 
   // === JSX ===
 
@@ -544,7 +564,7 @@ export function PathViewerPage() {
 
           {/* SVG 路徑疊圖 */}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 100">
-            {paths.filter(p => p.visible && (visibilityFilter === 'all' || p.alliance === visibilityFilter)).map(path => {
+            {paths.filter(p => p.visible && !isPathFiltered(p)).map(path => {
               const rawPoints = parsePathString(path.coords);
               if (rawPoints.length < 2) return null;
               const points = path.flipped ? rawPoints.map(p => ({ x: 100 - p.x, y: 100 - p.y })) : rawPoints;
@@ -554,7 +574,10 @@ export function PathViewerPage() {
               const animStep = isAnim ? Math.min(activeAnims[path.id], points.length - 1) : points.length - 1;
 
               return (
-                <g key={path.id}>
+                <g key={path.id} style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setLabelVisibleIds(prev => ({ ...prev, [path.id]: !prev[path.id] })); }}>
+                  {/* 透明擴大點擊區 */}
+                  <path d={fullPathD} fill="none" stroke="transparent" strokeWidth={6} />
                   {/* 完整路徑（動畫時變暗） */}
                   <path d={fullPathD} fill="none" stroke={path.color} strokeWidth={1.5}
                     strokeLinecap="round" strokeLinejoin="round" opacity={isAnim ? 0.25 : 0.9} />
@@ -584,6 +607,20 @@ export function PathViewerPage() {
                       fill="#fbbf24" stroke="white" strokeWidth={0.8}>
                       <animate attributeName="r" values="3;4.5;3" dur="0.8s" repeatCount="indefinite" />
                     </circle>
+                  )}
+
+                  {/* 隊伍編號標籤（點擊該路徑切換顯示） */}
+                  {labelVisibleIds[path.id] && (path.teamNumber || path.name) && (
+                    <text
+                      x={points[0].x * 2 + 3}
+                      y={points[0].y - 3}
+                      fill={path.color}
+                      fontSize="4.5"
+                      fontWeight="bold"
+                      stroke="rgba(0,0,0,0.8)"
+                      strokeWidth="0.6"
+                      paintOrder="stroke"
+                    >{path.teamNumber || path.name}</text>
                   )}
                 </g>
               );
@@ -649,6 +686,42 @@ export function PathViewerPage() {
               ))}
             </div>
 
+            {/* 類型篩選（多選） */}
+            <div className="flex gap-0.5 bg-slate-800 rounded-lg p-0.5">
+              <button onClick={() => setActiveTypes(new Set(ALL_TYPE_FILTERS))}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                  activeTypes.size === ALL_TYPE_FILTERS.length
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}>
+                {t.pathViewer.typeAll}
+              </button>
+              {([
+                { value: 'pit' as TypeFilterValue, label: t.pathViewer.typePit, active: 'bg-amber-500/30 text-amber-400' },
+                { value: 'P' as TypeFilterValue, label: t.pathViewer.typeTest, active: 'bg-purple-500/30 text-purple-400' },
+                { value: 'QM' as TypeFilterValue, label: t.pathViewer.typeQuals, active: 'bg-emerald-500/30 text-emerald-400' },
+                { value: 'PO' as TypeFilterValue, label: t.pathViewer.typePlayoff, active: 'bg-sky-500/30 text-sky-400' },
+              ]).map(f => (
+                <button key={f.value} onClick={() => {
+                  setActiveTypes(prev => {
+                    const next = new Set(prev);
+                    if (next.has(f.value)) {
+                      next.delete(f.value);
+                      if (next.size === 0) return prev;
+                    } else {
+                      next.add(f.value);
+                    }
+                    return next;
+                  });
+                }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                    activeTypes.has(f.value) ? f.active : 'text-slate-500 hover:text-slate-300'
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
             {/* 全部顯示/隱藏 */}
             <button onClick={() => {
               const allVisible = paths.every(p => p.visible);
@@ -671,7 +744,7 @@ export function PathViewerPage() {
               const points = parsePathString(path.coords);
               const dist = calculatePathDistance(path.coords, path.flipped);
               const isPathAnim = path.id in activeAnims;
-              const isFiltered = visibilityFilter !== 'all' && path.alliance !== visibilityFilter;
+              const isFiltered = isPathFiltered(path);
 
               return (
                 <div key={path.id}

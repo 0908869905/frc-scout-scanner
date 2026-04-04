@@ -137,6 +137,11 @@ export const zhTW = {
     saved: '已儲存',
     hideAll: '全部隱藏',
     showAllPaths: '全部顯示',
+    typeAll: '全部',
+    typePit: 'Pit',
+    typeTest: '測試',
+    typeQuals: '資格',
+    typePlayoff: '季後',
   },
 
   // QR 類型

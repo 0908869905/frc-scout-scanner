@@ -139,6 +139,11 @@ export const en: Translations = {
     saved: 'Saved',
     hideAll: 'Hide All',
     showAllPaths: 'Show All',
+    typeAll: 'All',
+    typePit: 'Pit',
+    typeTest: 'Test',
+    typeQuals: 'Quals',
+    typePlayoff: 'Playoff',
   },
 
   // QR Types
