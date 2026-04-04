@@ -8,7 +8,29 @@
 
 **階段**：已部署上線 (Vercel)
 **完成度**：99%
-**最後更新**：2026-03-14 (Manual OPR 手動輸入分頁)
+**最後更新**：2026-03-21 (ManualOPR UI 回饋修復)
+
+---
+
+## Session: 2026-03-21 (ManualOPR UI 回饋修復)
+
+### 完成項目
+- [x] 診斷 ManualOPR.gs 執行後「沒有反應」的根因：所有回饋都用 `console.log()`（寫入 Google Cloud Logging），使用者在試算表 UI 完全看不到
+- [x] 新增 `onOpen()` 函數：試算表開啟時自動建立「OPR Tools」自訂選單（Calculate Manual OPR / Build Manual OPR Sheet）
+- [x] `calculateManualOPR()` 所有錯誤情境改用 `ui.alert()` 彈窗（Sheet 不存在、無資料、無分數、矩陣奇異）
+- [x] 開始計算時顯示 `toast('Calculating...')`，成功時 `toast()` 顯示結果摘要（場次數、隊伍數、Top 3）
+- [x] `buildManualOPRSheet()` 完成時顯示 `toast()` 提示下一步
+- [x] 更新檔案頂部註解：使用方式改為從選單操作
+
+### 修改檔案（1 個）
+- `google-apps-script/ManualOPR.gs` - 新增 onOpen() 自訂選單、所有回饋改用 ui.alert()/toast() 取代 console.log()
+
+### 5-Question Reboot Check
+1. **做什麼？** 修復 ManualOPR.gs 使用者看不到任何回饋的問題
+2. **進度？** 已完成，ManualOPR.gs 已更新
+3. **下一步？** (1) 在 Google Apps Script 編輯器更新 ManualOPR.gs (2) 重新載入試算表觸發 onOpen() (3) 從「OPR Tools」選單執行功能驗證 toast/alert 回饋正常
+4. **阻礙？** 無
+5. **檔案？** `google-apps-script/ManualOPR.gs`（onOpen、calculateManualOPR、buildManualOPRSheet）
 
 ---
 

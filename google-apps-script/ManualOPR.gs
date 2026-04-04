@@ -2,19 +2,35 @@
  * Manual OPR - 手動輸入 OPR 分析
  *
  * 建立「Manual OPR」分頁，使用者手動填入比賽隊伍和分數，
- * 執行 calculateManualOPR() 計算 OPR 排名和預測分數。
+ * 從試算表選單「OPR Tools → Calculate Manual OPR」一鍵計算。
  *
  * 佈局與 OPR Analysis 完全相同（三區塊：比賽表 / 排名 / 隊伍查詢）。
  * 矩陣運算函數（matTranspose, matMultiply, matInverse, solveOPR）
  * 直接呼叫 Code.gs 中已有的函數。
  *
  * 使用方式：
- * 1. 在 Apps Script 編輯器執行 buildManualOPRSheet()
- * 2. 在 Google Sheets 的「Manual OPR」分頁手動填入比賽資料（A-I 欄）
- * 3. 執行 calculateManualOPR() 計算 OPR
+ * 1. 執行 buildManualOPRSheet()（或從選單「OPR Tools → Build Manual OPR Sheet」）
+ * 2. 在「Manual OPR」分頁手動填入比賽資料（A-I 欄）
+ * 3. 從選單「OPR Tools → Calculate Manual OPR」計算 OPR
+ * 4. 加入新資料後，再點一次 Calculate 即可重新計算
  */
 
 var MANUAL_OPR_SHEET_NAME = 'Manual OPR';
+
+// ============================================================
+// onOpen - 自訂選單（開啟試算表時自動建立）
+// ============================================================
+
+/**
+ * 試算表開啟時建立「OPR Tools」選單，讓使用者直接從選單執行。
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('OPR Tools')
+    .addItem('Calculate Manual OPR', 'calculateManualOPR')
+    .addItem('Build Manual OPR Sheet', 'buildManualOPRSheet')
+    .addToUi();
+}
 
 // ============================================================
 // buildManualOPRSheet - 建立手動 OPR 工作表
@@ -88,9 +104,10 @@ function buildManualOPRSheet() {
   // 設定查詢公式（呼叫 Code.gs 的共用函數）
   setupOPRLookupFormulas(sheet);
 
-  console.log('=== Manual OPR Sheet Created ===');
-  console.log('Sheet: ' + MANUAL_OPR_SHEET_NAME);
-  console.log('Next: Fill in matchId (A), teams (B-G), scores (H-I), then run calculateManualOPR()');
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Fill in matchId (A), teams (B-G), scores (H-I), then use OPR Tools → Calculate Manual OPR',
+    'Manual OPR Sheet Ready', 10
+  );
 }
 
 // ============================================================
@@ -102,16 +119,20 @@ function buildManualOPRSheet() {
  * 計算 OPR 並寫入 Section B 排名 + Section A 預測分數。
  */
 function calculateManualOPR() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MANUAL_OPR_SHEET_NAME);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ui = SpreadsheetApp.getUi();
+  var sheet = ss.getSheetByName(MANUAL_OPR_SHEET_NAME);
   if (!sheet) {
-    console.log('Manual OPR sheet not found. Run buildManualOPRSheet() first.');
+    ui.alert('Manual OPR', 'Sheet not found!\nRun "OPR Tools → Build Manual OPR Sheet" first.', ui.ButtonSet.OK);
     return;
   }
+
+  ss.toast('Calculating...', 'Manual OPR', 30);
 
   // 1. 讀取 Section A 資料
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    console.log('No match data in Manual OPR sheet. Fill in match data first.');
+    ui.alert('Manual OPR', 'No data found.\nFill in match data (A-I columns) first.', ui.ButtonSet.OK);
     return;
   }
 
@@ -152,7 +173,7 @@ function calculateManualOPR() {
   }
 
   if (scoredMatches.length === 0) {
-    console.log('No scored matches found. Fill in redScore (H) and blueScore (I) columns first.');
+    ui.alert('Manual OPR', 'No scored matches found.\nFill in redScore (H) and blueScore (I) columns.', ui.ButtonSet.OK);
     return;
   }
 
@@ -200,7 +221,7 @@ function calculateManualOPR() {
   // 5. 求解 OPR（呼叫 Code.gs 的 solveOPR）
   var oprValues = solveOPR(A, b);
   if (!oprValues) {
-    console.log('Matrix is singular - cannot compute OPR. Need more scored matches with diverse team combinations.');
+    ui.alert('Manual OPR', 'Matrix is singular — cannot compute OPR.\nNeed more scored matches with diverse team combinations.', ui.ButtonSet.OK);
     return;
   }
 
@@ -272,15 +293,15 @@ function calculateManualOPR() {
   // 8. 更新查詢公式（呼叫 Code.gs 的共用函數）
   setupOPRLookupFormulas(sheet);
 
-  console.log('=== Manual OPR Calculation Complete ===');
-  console.log('Scored matches used: ' + scoredMatches.length);
-  console.log('Teams ranked: ' + oprData.length);
+  // 9. 顯示結果摘要
+  var summary = 'Matches: ' + scoredMatches.length + ' | Teams: ' + oprData.length;
   if (oprData.length > 0) {
-    console.log('Top 3:');
+    summary += '\n\nTop 3:';
     for (var top = 0; top < Math.min(3, oprData.length); top++) {
-      console.log('  #' + (top + 1) + ' Team ' + oprData[top].team + ' — OPR: ' + oprData[top].opr);
+      summary += '\n  #' + (top + 1) + ' Team ' + oprData[top].team + ' — OPR: ' + oprData[top].opr;
     }
   }
+  ss.toast(summary, 'OPR Calculation Complete', 10);
 }
 
 // Section C 查詢公式直接呼叫 Code.gs 的 setupOPRLookupFormulas(sheet)

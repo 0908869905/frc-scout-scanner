@@ -146,7 +146,7 @@ frc-scout-scanner/
 │       └── PathViewerPage.tsx  # 路徑可視化工具（顏色選擇器、聯盟標籤、圖層排序、後端查詢、多路徑同時播放、來源標籤 SP/Pit、全部顯示/隱藏）
 ├── google-apps-script/
 │   ├── Code.gs            # Google Apps Script 完整程式碼（doGet action 路由 + doPost 上傳 + TBA 同步 + OPR Analysis）
-│   ├── ManualOPR.gs       # 手動輸入版 OPR 分析（buildManualOPRSheet + calculateManualOPR，共用 Code.gs 矩陣運算）
+│   ├── ManualOPR.gs       # 手動輸入版 OPR 分析（onOpen 自訂選單 + buildManualOPRSheet + calculateManualOPR，共用 Code.gs 矩陣運算，toast/alert UI 回饋）
 │   └── README.md          # 部署指南
 ├── CLAUDE.md              # Claude Code 指令（此檔案）
 ├── PROGRESS.md            # 開發進度追蹤
@@ -365,4 +365,4 @@ function MyComponent() {
 
 ---
 
-*最後更新：2026-03-14*
+*最後更新：2026-03-21*

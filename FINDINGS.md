@@ -27,6 +27,7 @@
 19. [Path QR Schema 不含 matchLevel 的設計影響](#path-qr-schema-不含-matchlevel-的設計影響)
 20. [Google Sheets deleteRows vs Range.clear() 與凍結行的交互作用](#google-sheets-deleterows-vs-rangeclear-與凍結行的交互作用)
 21. [後端 getMatchKey 覆蓋 Bug 與 Path QR 跨類型配對的完整修復](#後端-getmatchkey-覆蓋-bug-與-path-qr-跨類型配對的完整修復)
+22. [Google Apps Script console.log() 對使用者不可見](#google-apps-script-consolelog-對使用者不可見)
 
 ---
 
@@ -1609,6 +1610,52 @@ Google Sheets 的 `getValues()` 可能將數字類的值（如 matchNumber "5"�
 
 ---
 
+## Google Apps Script console.log() 對使用者不可見
+
+### 發現日期：2026-03-21
+
+### 問題
+
+ManualOPR.gs 執行後使用者反映「沒有反應」。不論計算成功、資料缺漏、還是矩陣奇異，試算表 UI 完全沒有任何訊息。
+
+### 原因
+
+所有回饋都使用 `console.log()`，這在 Google Apps Script 中是寫入 Google Cloud Logging（需到 Apps Script 編輯器 → 執行記錄 才能看到），使用者在試算表介面完全不可見。
+
+### 解決方案
+
+根據回饋類型選用不同的 UI API：
+
+| 場景 | API | 特性 |
+|------|-----|------|
+| 錯誤提示（需要使用者確認） | `SpreadsheetApp.getUi().alert()` | 阻塞式彈窗，使用者必須按確定 |
+| 進度/成功通知（非阻塞） | `SpreadsheetApp.getActiveSpreadsheet().toast(message, title, seconds)` | 右下角浮動通知，自動消失 |
+| 除錯記錄（開發者用） | `console.log()` | 寫入 Cloud Logging，使用者不可見 |
+
+### 選擇理由
+
+- `toast()` 適合「開始計算」和「成功結果」通知：不打斷使用者操作，自動消失
+- `alert()` 適合錯誤情境：強制使用者注意到問題，避免使用者以為什麼都沒發生
+- `console.log()` 保留用於開發除錯，不應作為使用者回饋的唯一管道
+
+### 額外改進：onOpen() 自訂選單
+
+搭配 `onOpen()` 建立自訂選單，讓使用者不需進入 Apps Script 編輯器就能執行函數：
+
+```javascript
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('OPR Tools')
+    .addItem('Calculate Manual OPR', 'calculateManualOPR')
+    .addItem('Build Manual OPR Sheet', 'buildManualOPRSheet')
+    .addToUi();
+}
+```
+
+這解決了「使用者不知道怎麼執行」的問題，配合 toast/alert 解決了「使用者不知道執行結果」的問題。
+
+---
+
 ## 參考資源
 
 - [SCANNER_INTEGRATION.md](./SCANNER_INTEGRATION.md) - 整合文件
@@ -1619,4 +1666,4 @@ Google Sheets 的 `getValues()` 可能將數字類的值（如 matchNumber "5"�
 ---
 
 *此檔案持續更新，記錄所有技術發現*
-*最後更新：2026-03-14 (後端 getMatchKey 覆蓋 Bug 與 Path QR 跨類型配對的完整修復)*
+*最後更新：2026-03-21 (Google Apps Script console.log() 對使用者不可見)*
