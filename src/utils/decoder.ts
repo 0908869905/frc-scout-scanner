@@ -4,7 +4,15 @@
  */
 
 import LZString from 'lz-string';
-import { TSV_SCHEMA_MATCH, TSV_SCHEMA_PATH, TSV_SCHEMA_PIT_PATH, TSV_SCHEMA_PIT, TSV_SCHEMA_PIT_EXTERNAL, TSV_SCHEMA_PIT_EXTERNAL_LEGACY } from '../constants';
+import {
+  TSV_SCHEMA_MATCH,
+  TSV_SCHEMA_PATH,
+  TSV_SCHEMA_PIT_PATH,
+  TSV_SCHEMA_PIT,
+  TSV_SCHEMA_PIT_EXTERNAL,
+  TSV_SCHEMA_PIT_EXTERNAL_LEGACY,
+  TSV_SCHEMA_PIT_EXTERNAL_V2,
+} from '../constants';
 import type { QRType, DecodeResult, PathPoint } from '../types';
 
 /**
@@ -13,15 +21,16 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';                    // 21 (v1.4.0)
-  if (length === TSV_SCHEMA_PATH.length) return 'path';                      // 5
-  if (length === TSV_SCHEMA_PIT_PATH.length) return 'pit-path';              // 4 (Pit Collect path / legacy path)
-  if (length === TSV_SCHEMA_PIT.length) return 'pit';                        // 13
-  if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';      // 22 (v2, 無 stability)
-  if (length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length) return 'pit-external'; // 23 (v1, 含 stability)
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';                       // 21 (v1.4.0)
+  if (length === TSV_SCHEMA_PATH.length) return 'path';                         // 5
+  if (length === TSV_SCHEMA_PIT_PATH.length) return 'pit-path';                 // 4 (Pit Collect path / legacy path)
+  if (length === TSV_SCHEMA_PIT.length) return 'pit';                           // 13
+  if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';         // 22 (舊 v2)
+  // 23 欄位同時涵蓋 LEGACY (v1 含 stability) 與 V2 (新版含 version 前綴)
+  if (length === TSV_SCHEMA_PIT_EXTERNAL_V2.length) return 'pit-external';      // 23
 
   // 記錄未知欄位數量以便除錯
-  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length}`);
+  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_V2.length}`);
 
   return 'unknown';
 }
@@ -59,10 +68,17 @@ export function decodeQR(qrContent: string): DecodeResult {
       schema = TSV_SCHEMA_PIT;
       break;
     case 'pit-external':
-      // 支援新版 (22 欄位) 和舊版 (23 欄位，含 stability)
-      schema = values.length === TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length
-        ? TSV_SCHEMA_PIT_EXTERNAL_LEGACY
-        : TSV_SCHEMA_PIT_EXTERNAL;
+      // 三種變體：
+      //   22 欄 → 舊 v2 (無版本前綴、無 stability)
+      //   23 欄 + 第一欄以 'v' 開頭 → 新 v2 (含 version 前綴)
+      //   23 欄 + 第一欄非 'v' 開頭 → 舊 v1 legacy (含 stability)
+      if (values.length === TSV_SCHEMA_PIT_EXTERNAL_V2.length) {
+        schema = values[0]?.toLowerCase().startsWith('v')
+          ? TSV_SCHEMA_PIT_EXTERNAL_V2
+          : TSV_SCHEMA_PIT_EXTERNAL_LEGACY;
+      } else {
+        schema = TSV_SCHEMA_PIT_EXTERNAL;
+      }
       break;
     default:
       // 未知类型，使用索引作为栏位名

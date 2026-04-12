@@ -69,7 +69,7 @@ export const TSV_SCHEMA_PIT = [
   'pitAutoNotes',
 ] as const;
 
-// Pit External TSV Schema (22 栏位) - FRC6998 Pit Collect v2 (stability 已移除)
+// Pit External TSV Schema (22 栏位) - FRC6998 Pit Collect 舊 v2 (無版本前綴、無 stability)
 export const TSV_SCHEMA_PIT_EXTERNAL = [
   'teamNumber',
   'scouterName',
@@ -122,14 +122,43 @@ export const TSV_SCHEMA_PIT_EXTERNAL_LEGACY = [
   'notes',
 ] as const;
 
+// Pit External TSV Schema V2 (23 栏位) - FRC6998 Pit Collect 目前版本
+// 第一欄為 'v2' 版本前綴；與 LEGACY 欄位數相同，以 values[0] 開頭字母區分
+export const TSV_SCHEMA_PIT_EXTERNAL_V2 = [
+  'version',
+  'teamNumber',
+  'scouterName',
+  'chassisType',
+  'weight',
+  'maxCapacity',
+  'intake',
+  'visionHardware',
+  'visionSoftware',
+  'shooting',
+  'turret',
+  'startLocation',
+  'preload',
+  'autoIntake',
+  'autoHang',
+  'autoTotal',
+  'crossMidfield',
+  'terrain',
+  'climbLevel',
+  'climbPosition',
+  'climbTime',
+  'photosTaken',
+  'notes',
+] as const;
+
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
   match: TSV_SCHEMA_MATCH.length,      // 21
   path: TSV_SCHEMA_PATH.length,        // 5
   pitPath: TSV_SCHEMA_PIT_PATH.length, // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
-  pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length, // 22
-  pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23
+  pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length,          // 22 (舊 v2 無版本)
+  pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23 (v1 含 stability)
+  pitExternalV2: TSV_SCHEMA_PIT_EXTERNAL_V2.length,     // 23 (新 v2 含 version 前綴)
 } as const;
 
 // 栏位显示名称（中文）- v1.3.0 更新

@@ -566,21 +566,39 @@ export function PathViewerPage() {
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 100">
             {paths.filter(p => p.visible && !isPathFiltered(p)).map(path => {
               const rawPoints = parsePathString(path.coords);
-              if (rawPoints.length < 2) return null;
+              if (rawPoints.length === 0) return null;
               const points = path.flipped ? rawPoints.map(p => ({ x: 100 - p.x, y: 100 - p.y })) : rawPoints;
+              const hasLine = points.length >= 2;
 
-              const fullPathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 2} ${p.y}`).join(' ');
-              const isAnim = path.id in activeAnims;
+              const fullPathD = hasLine ? points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 2} ${p.y}`).join(' ') : '';
+              const isAnim = hasLine && path.id in activeAnims;
               const animStep = isAnim ? Math.min(activeAnims[path.id], points.length - 1) : points.length - 1;
+
+              // 組合顯示標籤：Pit → "Pit 6998"；比賽 → "Q37 6998"；手動 → path.name
+              let labelText = '';
+              if (path.source === 'pit' && path.teamNumber) {
+                labelText = `Pit ${path.teamNumber}`;
+              } else if (path.teamNumber && path.matchLevel && path.matchNumber) {
+                const code = MATCH_LEVEL_CODE[path.matchLevel] || path.matchLevel;
+                labelText = `${code}${path.matchNumber} ${path.teamNumber}`;
+              } else {
+                labelText = path.name;
+              }
 
               return (
                 <g key={path.id} style={{ cursor: 'pointer' }}
                   onClick={(e) => { e.stopPropagation(); setLabelVisibleIds(prev => ({ ...prev, [path.id]: !prev[path.id] })); }}>
-                  {/* 透明擴大點擊區 */}
-                  <path d={fullPathD} fill="none" stroke="transparent" strokeWidth={6} />
-                  {/* 完整路徑（動畫時變暗） */}
-                  <path d={fullPathD} fill="none" stroke={path.color} strokeWidth={1.5}
-                    strokeLinecap="round" strokeLinejoin="round" opacity={isAnim ? 0.25 : 0.9} />
+                  {/* 透明擴大點擊區（單點用圓,多點用線） */}
+                  {hasLine ? (
+                    <path d={fullPathD} fill="none" stroke="transparent" strokeWidth={6} />
+                  ) : (
+                    <circle cx={points[0].x * 2} cy={points[0].y} r={4} fill="transparent" />
+                  )}
+                  {/* 完整路徑（僅多點路徑） */}
+                  {hasLine && (
+                    <path d={fullPathD} fill="none" stroke={path.color} strokeWidth={1.5}
+                      strokeLinecap="round" strokeLinejoin="round" opacity={isAnim ? 0.25 : 0.9} />
+                  )}
 
                   {/* 動畫已走過的部分 */}
                   {isAnim && animStep > 0 && (
@@ -593,9 +611,11 @@ export function PathViewerPage() {
                   {/* 起點 */}
                   <circle cx={points[0].x * 2} cy={points[0].y} r={2}
                     fill={path.color} stroke="white" strokeWidth={0.5} />
-                  {/* 終點 */}
-                  <circle cx={points[points.length - 1].x * 2} cy={points[points.length - 1].y} r={2}
-                    fill="white" stroke={path.color} strokeWidth={0.5} />
+                  {/* 終點（僅多點路徑） */}
+                  {hasLine && (
+                    <circle cx={points[points.length - 1].x * 2} cy={points[points.length - 1].y} r={2}
+                      fill="white" stroke={path.color} strokeWidth={0.5} />
+                  )}
                   {/* 中間點 */}
                   {points.length > 2 && points.slice(1, -1).map((p, i) => (
                     <circle key={i} cx={p.x * 2} cy={p.y} r={1} fill={path.color} opacity="0.7" />
@@ -609,8 +629,8 @@ export function PathViewerPage() {
                     </circle>
                   )}
 
-                  {/* 隊伍編號標籤（點擊該路徑切換顯示） */}
-                  {labelVisibleIds[path.id] && (path.teamNumber || path.name) && (
+                  {/* 顯示標籤：場次 + 隊號 / Pit + 隊號 */}
+                  {labelVisibleIds[path.id] && labelText && (
                     <text
                       x={points[0].x * 2 + 3}
                       y={points[0].y - 3}
@@ -620,7 +640,7 @@ export function PathViewerPage() {
                       stroke="rgba(0,0,0,0.8)"
                       strokeWidth="0.6"
                       paintOrder="stroke"
-                    >{path.teamNumber || path.name}</text>
+                    >{labelText}</text>
                   )}
                 </g>
               );
