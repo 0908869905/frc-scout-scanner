@@ -36,12 +36,16 @@ const CONFIG = {
 // ============================================
 
 /**
- * Match Data QR - 21 個欄位（不含 autoPath）
+ * Match Data QR - 44 個欄位（不含 autoPath）
  * 必須與 Scouting PASS 的 constants.ts 保持一致
  * v1.4.0 變更：
  * - bumpTrenchCount 拆分為 bumpCount + trenchCount
  * v1.5.0 變更：
  * - comments 拆成 robotIssues / performance / comments 三欄
+ * v1.6.0 變更：
+ * - 23 → 44 欄：前 17 欄不變；後段 27 欄扁平化
+ * - 移除：robotDied / almostTipped / ridingOnBall / robotIssues / performance
+ * - 新增：11 issue bool + 6 flag bool + 3 collision bool + 1 collision text + 5 rating text + comments
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -59,20 +63,46 @@ const TSV_SCHEMA_MATCH = [
   'bumpCount',            // 9: 跨越 Bump 次數
   'trenchCount',          // 10: 跨越 Trench 次數
   'fuelDroppedOnBumpCount', // 11: 穿越 Bump 時掉落 Fuel 次數
-  // Teleop - Penalty (2) - 計數器
-  'minorPenalty',         // 12: 輕微犯規次數 (number)
-  'majorPenalty',         // 13: 重大犯規次數 (number)
+  // Teleop - Penalty (2)
+  'minorPenalty',         // 12: 輕微犯規次數
+  'majorPenalty',         // 13: 重大犯規次數
   // Teleop - Climb (3)
   'teleClimbStatus',      // 14: 手動爬塔狀態
   'teleClimbTime',        // 15: 手動爬塔時間（秒）
   'teleClimbPosition',    // 16: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
-  // PostMatch (6) - v1.5.0
-  'robotDied',            // 17: 機器人故障 (0/1)
-  'almostTipped',         // 18: 差點傾倒 (0/1)
-  'ridingOnBall',         // 19: 騎 Fuel (0/1)
-  'robotIssues',          // 20: 機器異常（PostMatch checklist 序列化）
-  'performance',          // 21: 機器表現（flags + collision + ratings 序列化）
-  'comments'              // 22: 自由輸入備註
+  // --- 17 above unchanged ---
+  // PostMatch Issues (11) — 0/1 (v1.6.0)
+  'issueNoShow',          // 17: 未出場
+  'issueCrashed',         // 18: 機器人死亡/失效
+  'issueEStop',           // 19: E-Stop
+  'issueAStop',           // 20: A-Stop
+  'issueLowVoltage',      // 21: 電壓過低
+  'issueIntakeStuck',     // 22: Intake 卡住
+  'issueShooterOff',      // 23: Shooter 異常
+  'issueStuckBump',       // 24: 卡在 Bump 上
+  'issueHitTrench',       // 25: 撞到 Trench
+  'issuePartFell',        // 26: 零件掉落
+  'issueMovement',        // 27: 行動異常
+  // PostMatch Flags (6) — 0/1 (v1.6.0)
+  'flagYellowCard',       // 28: 黃牌
+  'flagRedCard',          // 29: 紅牌
+  'flagBelowExpected',    // 30: 表現低於預期
+  'flagTipped',           // 31: 翻倒
+  'flagRidingFuel',       // 32: 騎 Fuel
+  'flagStuckBall',        // 33: 卡球
+  // PostMatch Collision (3 bool + 1 text) — v1.6.0
+  'hasCollision',         // 34: 有劇烈撞擊 (0/1)
+  'collisionField',       // 35: 撞到場地 (0/1)
+  'collisionRobot',       // 36: 撞到機器人 (0/1)
+  'collisionTeamNumbers', // 37: 撞到的隊伍號碼（文字）
+  // PostMatch Ratings (5) — good/ok/bad/空 (v1.6.0)
+  'ratingPushTrench',     // 38: 推 Trench 評分
+  'ratingPushBump',       // 39: 推 Bump 評分
+  'ratingShoot',          // 40: 射擊評分
+  'ratingHuman',          // 41: Human Player 評分
+  'ratingDefense',        // 42: 防守評分
+  // PostMatch free-text (1)
+  'comments'              // 43: 自由輸入備註
 ];
 
 /**
@@ -164,7 +194,7 @@ function doGet(e) {
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.5.0',
+    version: '1.6.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
