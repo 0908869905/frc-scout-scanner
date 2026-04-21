@@ -2,8 +2,9 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (21 栏位) - v1.4.0
+// Match Data TSV Schema (23 栏位) - v1.5.0
 // 必须与 Scouting PASS 的 constants.ts 保持一致
+// v1.5.0: comments 拆成 robotIssues / performance / comments 三欄
 export const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
   'scouterName',
@@ -27,11 +28,13 @@ export const TSV_SCHEMA_MATCH = [
   'teleClimbStatus',
   'teleClimbTime',
   'teleClimbPosition',  // LeftSide/Left/Center/Right/RightSide
-  // PostMatch (4)
+  // PostMatch (6)
   'robotDied',
   'almostTipped',
   'ridingOnBall',
-  'comments',
+  'robotIssues',        // 機器異常（PostMatch checklist 序列化）
+  'performance',        // 機器表現（flags + collision + ratings 序列化）
+  'comments',           // 自由輸入備註
 ] as const;
 
 // Path Data TSV Schema (5 栏位) - Scouting PASS
@@ -184,7 +187,9 @@ export const FIELD_LABELS: Record<string, string> = {
   robotDied: '机器人故障',
   almostTipped: '差点翻倒',
   ridingOnBall: '骑 Fuel',
-  comments: '评论',
+  robotIssues: '机器异常',
+  performance: '机器表现',
+  comments: '备注',
 
   // Path Data
   autoPath: '自动路径',

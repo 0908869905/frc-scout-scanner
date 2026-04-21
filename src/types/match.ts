@@ -40,7 +40,9 @@ export interface MatchData {
   speedRating: Rating;        // 速度评分 (0-5)
 
   // === 备注 ===
-  comments: string;           // 评论
+  robotIssues: string;        // 机器异常（序列化列表）
+  performance: string;        // 机器表现（序列化：flags + collision + ratings）
+  comments: string;           // 自由输入备注
   subjectiveNotes: string;    // 主观备注
 
   // === 额外栏位（Scanner 添加）===

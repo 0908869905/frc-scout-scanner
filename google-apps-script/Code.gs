@@ -40,6 +40,8 @@ const CONFIG = {
  * 必須與 Scouting PASS 的 constants.ts 保持一致
  * v1.4.0 變更：
  * - bumpTrenchCount 拆分為 bumpCount + trenchCount
+ * v1.5.0 變更：
+ * - comments 拆成 robotIssues / performance / comments 三欄
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -64,11 +66,13 @@ const TSV_SCHEMA_MATCH = [
   'teleClimbStatus',      // 14: 手動爬塔狀態
   'teleClimbTime',        // 15: 手動爬塔時間（秒）
   'teleClimbPosition',    // 16: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
-  // PostMatch (4)
+  // PostMatch (6) - v1.5.0
   'robotDied',            // 17: 機器人故障 (0/1)
   'almostTipped',         // 18: 差點傾倒 (0/1)
   'ridingOnBall',         // 19: 騎 Fuel (0/1)
-  'comments'              // 20: 備註
+  'robotIssues',          // 20: 機器異常（PostMatch checklist 序列化）
+  'performance',          // 21: 機器表現（flags + collision + ratings 序列化）
+  'comments'              // 22: 自由輸入備註
 ];
 
 /**
@@ -160,7 +164,7 @@ function doGet(e) {
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.3.0',
+    version: '1.5.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
@@ -1537,9 +1541,32 @@ function stripFrcPrefix(teamKey) {
 function writeSheetData(sheetName, headers, rows) {
   var sheet = getOrCreateSheet(sheetName, headers);
 
-  // 清除標題以下所有資料
-  if (sheet.getLastRow() > 1) {
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clear();
+  // 比對標頭，若不同則更新（支援動態標頭如 Score Breakdown）
+  var lastCol = sheet.getLastColumn();
+  var needHeaderUpdate = false;
+  if (lastCol !== headers.length) {
+    needHeaderUpdate = true;
+  } else if (lastCol > 0) {
+    var currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    needHeaderUpdate = headers.some(function(h, i) { return String(currentHeaders[i] || '') !== String(h); });
+  }
+
+  if (needHeaderUpdate) {
+    // 清除舊標頭（可能欄數不同）
+    if (lastCol > 0) {
+      sheet.getRange(1, 1, 1, lastCol).clear();
+    }
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#4285f4')
+      .setFontColor('#ffffff');
+  }
+
+  // 清除標題以下所有資料（用 max 確保清除舊的寬欄資料）
+  var clearCols = Math.max(lastCol, headers.length);
+  if (sheet.getLastRow() > 1 && clearCols > 0) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, clearCols).clear();
   }
 
   // 批次寫入

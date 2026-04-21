@@ -201,6 +201,8 @@ export const en: Translations = {
     defenseRating: 'Defense Rating',
     driverSkill: 'Driver Skill',
     speedRating: 'Speed Rating',
+    robotIssues: 'Robot Issues',
+    performance: 'Performance',
     comments: 'Comments',
     subjectiveNotes: 'Notes',
     autoPath: 'Auto Path',
