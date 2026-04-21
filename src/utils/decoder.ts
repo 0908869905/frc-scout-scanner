@@ -26,17 +26,12 @@ export function detectQRType(values: string[]): QRType {
   if (length === TSV_SCHEMA_PIT.length) return 'pit';                           // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';         // 22 (舊 v2)
 
-  // v1.5.0: match 與 pit-external-v2/legacy 皆為 23 欄位。
-  // 消歧規則：
-  //   - 第一欄以 'v' + 數字開頭 → pit-external-v2 (version prefix)
-  //   - 第一欄純數字 → pit-external-legacy (teamNumber)
-  //   - 其他（scouterName 自由文字）→ match
-  if (length === TSV_SCHEMA_MATCH.length) {
-    const first = (values[0] ?? '').trim();
-    if (/^v\d/i.test(first)) return 'pit-external';
-    if (/^\d+$/.test(first)) return 'pit-external';
-    return 'match';
-  }
+  // v1.7.0: match 已擴充到 47 欄，不再與 pit-external 衝突。
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';                       // 47 (v1.7.0)
+
+  // 23 欄專屬於 pit-external 的兩種變體（v1 legacy 含 stability 或 新 v2 含 version 前綴）
+  // 在 decodeQR 中以 values[0] 開頭字母再做精確解析
+  if (length === TSV_SCHEMA_PIT_EXTERNAL_V2.length) return 'pit-external';      // 23
 
   // 記錄未知欄位數量以便除錯
   console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_V2.length}`);
