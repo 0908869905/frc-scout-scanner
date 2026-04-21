@@ -46,6 +46,9 @@ const CONFIG = {
  * - 23 → 44 欄：前 17 欄不變；後段 27 欄扁平化
  * - 移除：robotDied / almostTipped / ridingOnBall / robotIssues / performance
  * - 新增：11 issue bool + 6 flag bool + 3 collision bool + 1 collision text + 5 rating text + comments
+ * v1.7.0 變更：
+ * - 44 → 47 欄：動作評分加 3 個 fuel 相關 rating
+ *   (ratingIntakeFuel / ratingTransportFuel / ratingShootFuel) 插在 ratingDefense 之後、comments 之前
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -95,14 +98,17 @@ const TSV_SCHEMA_MATCH = [
   'collisionField',       // 35: 撞到場地 (0/1)
   'collisionRobot',       // 36: 撞到機器人 (0/1)
   'collisionTeamNumbers', // 37: 撞到的隊伍號碼（文字）
-  // PostMatch Ratings (5) — good/ok/bad/空 (v1.6.0)
-  'ratingPushTrench',     // 38: 推 Trench 評分
-  'ratingPushBump',       // 39: 推 Bump 評分
-  'ratingShoot',          // 40: 射擊評分
-  'ratingHuman',          // 41: Human Player 評分
-  'ratingDefense',        // 42: 防守評分
+  // PostMatch Ratings (8) — good/ok/bad/空 (v1.7.0)
+  'ratingPushTrench',     // 38: 推球回 Alliance Zone (from trench) 評分
+  'ratingPushBump',       // 39: 推球回 Alliance Zone (from bump) 評分
+  'ratingShoot',          // 40: 射球回 Alliance Zone 評分
+  'ratingHuman',          // 41: 給 Human Player (Outpost) 評分
+  'ratingDefense',        // 42: Defense 評分
+  'ratingIntakeFuel',     // 43: 吸 fuel 評分 (v1.7.0)
+  'ratingTransportFuel',  // 44: 輸送 fuel 評分 (v1.7.0)
+  'ratingShootFuel',      // 45: 射擊 fuel 評分 (v1.7.0)
   // PostMatch free-text (1)
-  'comments'              // 43: 自由輸入備註
+  'comments'              // 46: 自由輸入備註
 ];
 
 /**
@@ -194,7 +200,7 @@ function doGet(e) {
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.6.0',
+    version: '1.7.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
