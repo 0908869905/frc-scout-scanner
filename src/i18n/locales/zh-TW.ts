@@ -203,6 +203,7 @@ export const zhTW = {
     issueLowVoltage: '電壓過低',
     issueIntakeStuck: 'Intake 卡住',
     issueShooterOff: 'Shooter 異常',
+    issueShooterStutter: '射球不順',
     issueStuckBump: '卡在 Bump 上',
     issueHitTrench: '撞到 Trench',
     issuePartFell: '零件掉落',

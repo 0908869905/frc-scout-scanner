@@ -205,6 +205,7 @@ export const en: Translations = {
     issueLowVoltage: 'Low Voltage',
     issueIntakeStuck: 'Intake Stuck',
     issueShooterOff: 'Shooter Off',
+    issueShooterStutter: 'Shooter stutters',
     issueStuckBump: 'Stuck on Bump',
     issueHitTrench: 'Hit Trench',
     issuePartFell: 'Part Fell Off',

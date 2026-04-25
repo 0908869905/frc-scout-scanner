@@ -49,6 +49,9 @@ const CONFIG = {
  * v1.7.0 變更：
  * - 44 → 47 欄：動作評分加 3 個 fuel 相關 rating
  *   (ratingIntakeFuel / ratingTransportFuel / ratingShootFuel) 插在 ratingDefense 之後、comments 之前
+ * v1.8.0 變更 (2026-04-26):
+ * - 47 → 48 欄：新增 issueShooterStutter (射球不順) 插在 issueShooterOff 後
+ *   描述射球過程短暫卡頓又恢復，與既有 issueShooterOff (label「shooter 不準」) 區分
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -74,41 +77,42 @@ const TSV_SCHEMA_MATCH = [
   'teleClimbTime',        // 15: 手動爬塔時間（秒）
   'teleClimbPosition',    // 16: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
   // --- 17 above unchanged ---
-  // PostMatch Issues (11) — 0/1 (v1.6.0)
+  // PostMatch Issues (12) — 0/1 (v1.6.0 + v1.8.0)
   'issueNoShow',          // 17: 未出場
   'issueCrashed',         // 18: 機器人死亡/失效
   'issueEStop',           // 19: E-Stop
   'issueAStop',           // 20: A-Stop
   'issueLowVoltage',      // 21: 電壓過低
   'issueIntakeStuck',     // 22: Intake 卡住
-  'issueShooterOff',      // 23: Shooter 異常
-  'issueStuckBump',       // 24: 卡在 Bump 上
-  'issueHitTrench',       // 25: 撞到 Trench
-  'issuePartFell',        // 26: 零件掉落
-  'issueMovement',        // 27: 行動異常
+  'issueShooterOff',      // 23: Shooter 異常 (label: 不準)
+  'issueShooterStutter',  // 24: 射球不順 (短暫卡頓又恢復) (v1.8.0)
+  'issueStuckBump',       // 25: 卡在 Bump 上
+  'issueHitTrench',       // 26: 撞到 Trench
+  'issuePartFell',        // 27: 零件掉落
+  'issueMovement',        // 28: 行動異常
   // PostMatch Flags (6) — 0/1 (v1.6.0)
-  'flagYellowCard',       // 28: 黃牌
-  'flagRedCard',          // 29: 紅牌
-  'flagBelowExpected',    // 30: 表現低於預期
-  'flagTipped',           // 31: 翻倒
-  'flagRidingFuel',       // 32: 騎 Fuel
-  'flagStuckBall',        // 33: 卡球
+  'flagYellowCard',       // 29: 黃牌
+  'flagRedCard',          // 30: 紅牌
+  'flagBelowExpected',    // 31: 表現低於預期
+  'flagTipped',           // 32: 翻倒
+  'flagRidingFuel',       // 33: 騎 Fuel
+  'flagStuckBall',        // 34: 卡球
   // PostMatch Collision (3 bool + 1 text) — v1.6.0
-  'hasCollision',         // 34: 有劇烈撞擊 (0/1)
-  'collisionField',       // 35: 撞到場地 (0/1)
-  'collisionRobot',       // 36: 撞到機器人 (0/1)
-  'collisionTeamNumbers', // 37: 撞到的隊伍號碼（文字）
+  'hasCollision',         // 35: 有劇烈撞擊 (0/1)
+  'collisionField',       // 36: 撞到場地 (0/1)
+  'collisionRobot',       // 37: 撞到機器人 (0/1)
+  'collisionTeamNumbers', // 38: 撞到的隊伍號碼（文字）
   // PostMatch Ratings (8) — good/ok/bad/空 (v1.7.0)
-  'ratingPushTrench',     // 38: 推球回 Alliance Zone (from trench) 評分
-  'ratingPushBump',       // 39: 推球回 Alliance Zone (from bump) 評分
-  'ratingShoot',          // 40: 射球回 Alliance Zone 評分
-  'ratingHuman',          // 41: 給 Human Player (Outpost) 評分
-  'ratingDefense',        // 42: Defense 評分
-  'ratingIntakeFuel',     // 43: 吸 fuel 評分 (v1.7.0)
-  'ratingTransportFuel',  // 44: 輸送 fuel 評分 (v1.7.0)
-  'ratingShootFuel',      // 45: 射擊 fuel 評分 (v1.7.0)
+  'ratingPushTrench',     // 39: 推球回 Alliance Zone (from trench) 評分
+  'ratingPushBump',       // 40: 推球回 Alliance Zone (from bump) 評分
+  'ratingShoot',          // 41: 射球回 Alliance Zone 評分
+  'ratingHuman',          // 42: 給 Human Player (Outpost) 評分
+  'ratingDefense',        // 43: Defense 評分
+  'ratingIntakeFuel',     // 44: 吸 fuel 評分 (v1.7.0)
+  'ratingTransportFuel',  // 45: 輸送 fuel 評分 (v1.7.0)
+  'ratingShootFuel',      // 46: 射擊 fuel 評分 (v1.7.0)
   // PostMatch free-text (1)
-  'comments'              // 46: 自由輸入備註
+  'comments'              // 47: 自由輸入備註
 ];
 
 /**
@@ -200,7 +204,7 @@ function doGet(e) {
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.7.0',
+    version: '1.8.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',

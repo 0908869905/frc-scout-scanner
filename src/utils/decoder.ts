@@ -26,8 +26,8 @@ export function detectQRType(values: string[]): QRType {
   if (length === TSV_SCHEMA_PIT.length) return 'pit';                           // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';         // 22 (舊 v2)
 
-  // v1.7.0: match 已擴充到 47 欄，不再與 pit-external 衝突。
-  if (length === TSV_SCHEMA_MATCH.length) return 'match';                       // 47 (v1.7.0)
+  // v1.8.0: match 已擴充到 48 欄，不再與 pit-external 衝突。
+  if (length === TSV_SCHEMA_MATCH.length) return 'match';                       // 48 (v1.8.0)
 
   // 23 欄專屬於 pit-external 的兩種變體（v1 legacy 含 stability 或 新 v2 含 version 前綴）
   // 在 decodeQR 中以 values[0] 開頭字母再做精確解析
