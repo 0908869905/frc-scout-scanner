@@ -175,7 +175,7 @@ export const en: Translations = {
     csvCount: 'Exported {count} CSV file(s)',
   },
 
-  // Field Labels (v1.7.0)
+  // Field Labels (v1.9.0)
   fields: {
     // PreMatch
     scouterName: 'Scouter',
@@ -188,10 +188,7 @@ export const en: Translations = {
     autoClimbStatus: 'Auto Climb',
     autoClimbTime: 'Auto Climb Time',
     autoClimbPosition: 'Auto Climb Position',
-    // Teleop
-    bumpCount: 'Bump Crossings',
-    trenchCount: 'Trench Crossings',
-    fuelDroppedOnBumpCount: 'Fuel Dropped on Bump',
+    // Penalty + Climb
     minorPenalty: 'Minor Penalties',
     majorPenalty: 'Major Penalties',
     teleClimbStatus: 'Tele Climb',
@@ -216,7 +213,7 @@ export const en: Translations = {
     flagBelowExpected: 'Below Expected',
     flagTipped: 'Tipped',
     flagRidingFuel: 'Riding on Fuel',
-    flagStuckBall: 'Stuck Ball',
+    flagStuckBall: 'Stuck on fuel',
     // PostMatch Collision
     hasCollision: 'Had Collision',
     collisionField: 'Hit Field',
@@ -231,6 +228,10 @@ export const en: Translations = {
     ratingIntakeFuel: 'Intake Fuel',
     ratingTransportFuel: 'Transport Fuel',
     ratingShootFuel: 'Shoot Fuel',
+    // PostMatch Other (v1.9.0)
+    otherStealsOpponent: 'Steals from opponent zone',
+    ratingNeedFuel: 'Need fuel in alliance',
+    ratingShotUnderDefense: 'Shot under defense',
     // Free-text
     comments: 'Comments',
     // Path

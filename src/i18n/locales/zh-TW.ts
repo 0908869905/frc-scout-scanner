@@ -173,7 +173,7 @@ export const zhTW = {
     csvCount: '已匯出 {count} 個 CSV 檔案',
   },
 
-  // 欄位標籤 (v1.7.0)
+  // 欄位標籤 (v1.9.0)
   fields: {
     // PreMatch
     scouterName: '記錄員',
@@ -186,10 +186,7 @@ export const zhTW = {
     autoClimbStatus: '自動爬升',
     autoClimbTime: '自動爬升時間',
     autoClimbPosition: '自動爬升位置',
-    // Teleop
-    bumpCount: 'Bump 跨越次數',
-    trenchCount: 'Trench 跨越次數',
-    fuelDroppedOnBumpCount: '跨 Bump 時掉 Fuel',
+    // Penalty + Climb
     minorPenalty: '輕微犯規',
     majorPenalty: '重大犯規',
     teleClimbStatus: '遙控爬升',
@@ -214,7 +211,7 @@ export const zhTW = {
     flagBelowExpected: '表現低於預期',
     flagTipped: '翻倒',
     flagRidingFuel: '騎 Fuel',
-    flagStuckBall: '卡球',
+    flagStuckBall: '卡在 fuel 上',
     // PostMatch Collision
     hasCollision: '有劇烈撞擊',
     collisionField: '撞到場地',
@@ -229,6 +226,10 @@ export const zhTW = {
     ratingIntakeFuel: '吸 fuel',
     ratingTransportFuel: '輸送 fuel',
     ratingShootFuel: '射擊 fuel',
+    // PostMatch Other (v1.9.0)
+    otherStealsOpponent: '去對方 alliance zone 偷球',
+    ratingNeedFuel: 'alliance zone 需要有球',
+    ratingShotUnderDefense: '被 defense 影響射球',
     // Free-text
     comments: '備註',
     // Path

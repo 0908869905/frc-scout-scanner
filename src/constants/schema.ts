@@ -2,11 +2,14 @@
  * FRC Scout Scanner - TSV Schema 定义
  */
 
-// Match Data TSV Schema (47 栏位) - v1.7.0
+// Match Data TSV Schema (48 栏位) - v1.9.0
 // 必须与 Scouting PASS 的 constants.ts 保持一致
 // v1.5.0: comments 拆成 robotIssues / performance / comments 三欄
 // v1.6.0: 23 → 44 欄；扁平化 issue/flag/collision/rating；移除 robotDied/almostTipped/ridingOnBall/robotIssues/performance
 // v1.7.0: 44 → 47 欄；新增 3 個 fuel 動作評分（ratingIntakeFuel / ratingTransportFuel / ratingShootFuel）
+// v1.8.0: 47 → 48 欄；新增 issueShooterStutter（射球不順）
+// v1.9.0: 48 → 48 欄；移除 Teleop bump/trench/fuelDropped (3 欄)，新增「其他」區段
+//         (otherStealsOpponent + ratingNeedFuel + ratingShotUnderDefense, 3 欄) 在 comments 之前
 export const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
   'scouterName',
@@ -19,19 +22,15 @@ export const TSV_SCHEMA_MATCH = [
   'autoClimbStatus',
   'autoClimbTime',
   'autoClimbPosition',  // LeftSide/Left/Center/Right/RightSide
-  // Teleop - Bump & Fuel (3)
-  'bumpCount',
-  'trenchCount',
-  'fuelDroppedOnBumpCount',
-  // Teleop - Penalty (2)
+  // Penalty (2)
   'minorPenalty',
   'majorPenalty',
-  // Teleop - Climb (3)
+  // Climb (3)
   'teleClimbStatus',
   'teleClimbTime',
   'teleClimbPosition',
-  // --- 17 above unchanged ---
-  // PostMatch Issues (11) — 0/1
+  // --- 14 above unchanged from v1.8.0 (Teleop bump/trench/fuelDropped removed) ---
+  // PostMatch Issues (12) — 0/1
   'issueNoShow',
   'issueCrashed',
   'issueEStop',
@@ -65,6 +64,10 @@ export const TSV_SCHEMA_MATCH = [
   'ratingIntakeFuel',     // v1.7.0
   'ratingTransportFuel',  // v1.7.0
   'ratingShootFuel',      // v1.7.0
+  // PostMatch Other (3) — v1.9.0
+  'otherStealsOpponent',     // boolean: 0/1
+  'ratingNeedFuel',          // good/ok/bad
+  'ratingShotUnderDefense',  // good/ok/bad
   // PostMatch free-text
   'comments',
 ] as const;
@@ -187,7 +190,7 @@ export const TSV_SCHEMA_PIT_EXTERNAL_V2 = [
 
 // 导出所有 schema 长度用于类型判断
 export const SCHEMA_LENGTHS = {
-  match: TSV_SCHEMA_MATCH.length,      // 47 (v1.7.0)
+  match: TSV_SCHEMA_MATCH.length,      // 48 (v1.9.0)
   path: TSV_SCHEMA_PATH.length,        // 5
   pitPath: TSV_SCHEMA_PIT_PATH.length, // 4
   pit: TSV_SCHEMA_PIT.length,          // 13
@@ -208,9 +211,6 @@ export const FIELD_LABELS: Record<string, string> = {
   autoClimbStatus: '自动爬升状态',
   autoClimbTime: '自动爬升时间',
   autoClimbPosition: '自动爬升位置',  // LeftSide/Left/Center/Right/RightSide
-  bumpCount: 'Bump 跨越次数',
-  trenchCount: 'Trench 跨越次数',
-  fuelDroppedOnBumpCount: '掉落次数',
   minorPenalty: '轻微犯规',
   majorPenalty: '重大犯规',
   teleClimbStatus: '手动爬升状态',
@@ -235,7 +235,7 @@ export const FIELD_LABELS: Record<string, string> = {
   flagBelowExpected: '表现低于预期',
   flagTipped: '翻倒',
   flagRidingFuel: '骑 Fuel',
-  flagStuckBall: '卡球',
+  flagStuckBall: '卡 fuel',
   // PostMatch Collision
   hasCollision: '有剧烈撞击',
   collisionField: '撞到场地',
@@ -250,6 +250,10 @@ export const FIELD_LABELS: Record<string, string> = {
   ratingIntakeFuel: '吸 fuel',
   ratingTransportFuel: '输送 fuel',
   ratingShootFuel: '射击 fuel',
+  // PostMatch Other (v1.9.0)
+  otherStealsOpponent: '去对方 alliance zone 偷球',
+  ratingNeedFuel: 'alliance zone 需要有球',
+  ratingShotUnderDefense: '被 defense 影响射球',
   // PostMatch Comments
   comments: '备注',
 

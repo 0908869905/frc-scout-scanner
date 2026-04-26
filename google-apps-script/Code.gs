@@ -52,6 +52,11 @@ const CONFIG = {
  * v1.8.0 變更 (2026-04-26):
  * - 47 → 48 欄：新增 issueShooterStutter (射球不順) 插在 issueShooterOff 後
  *   描述射球過程短暫卡頓又恢復，與既有 issueShooterOff (label「shooter 不準」) 區分
+ * v1.9.0 變更 (2026-04-26):
+ * - 48 → 48 欄：移除 Teleop bumpCount / trenchCount / fuelDroppedOnBumpCount (3 欄)
+ *   新增 PostMatch「其他」區段 otherStealsOpponent + ratingNeedFuel +
+ *   ratingShotUnderDefense (3 欄) 在 comments 之前
+ *   flag_stuckBall i18n label 改名（key 不變）
  */
 const TSV_SCHEMA_MATCH = [
   // PreMatch (6)
@@ -65,52 +70,52 @@ const TSV_SCHEMA_MATCH = [
   'autoClimbStatus',      // 6: 自動爬塔狀態
   'autoClimbTime',        // 7: 自動爬塔時間（秒）
   'autoClimbPosition',    // 8: 自動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
-  // Teleop - Bump & Fuel (3)
-  'bumpCount',            // 9: 跨越 Bump 次數
-  'trenchCount',          // 10: 跨越 Trench 次數
-  'fuelDroppedOnBumpCount', // 11: 穿越 Bump 時掉落 Fuel 次數
-  // Teleop - Penalty (2)
-  'minorPenalty',         // 12: 輕微犯規次數
-  'majorPenalty',         // 13: 重大犯規次數
-  // Teleop - Climb (3)
-  'teleClimbStatus',      // 14: 手動爬塔狀態
-  'teleClimbTime',        // 15: 手動爬塔時間（秒）
-  'teleClimbPosition',    // 16: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
-  // --- 17 above unchanged ---
+  // Penalty (2)
+  'minorPenalty',         // 9: 輕微犯規次數
+  'majorPenalty',         // 10: 重大犯規次數
+  // Climb (3)
+  'teleClimbStatus',      // 11: 手動爬塔狀態
+  'teleClimbTime',        // 12: 手動爬塔時間（秒）
+  'teleClimbPosition',    // 13: 手動爬塔位置 (LeftSide/Left/Center/Right/RightSide)
+  // --- 14 above unchanged from v1.8.0 (Teleop bump/trench/fuelDropped removed) ---
   // PostMatch Issues (12) — 0/1 (v1.6.0 + v1.8.0)
-  'issueNoShow',          // 17: 未出場
-  'issueCrashed',         // 18: 機器人死亡/失效
-  'issueEStop',           // 19: E-Stop
-  'issueAStop',           // 20: A-Stop
-  'issueLowVoltage',      // 21: 電壓過低
-  'issueIntakeStuck',     // 22: Intake 卡住
-  'issueShooterOff',      // 23: Shooter 異常 (label: 不準)
-  'issueShooterStutter',  // 24: 射球不順 (短暫卡頓又恢復) (v1.8.0)
-  'issueStuckBump',       // 25: 卡在 Bump 上
-  'issueHitTrench',       // 26: 撞到 Trench
-  'issuePartFell',        // 27: 零件掉落
-  'issueMovement',        // 28: 行動異常
+  'issueNoShow',          // 14: 未出場
+  'issueCrashed',         // 15: 機器人死亡/失效
+  'issueEStop',           // 16: E-Stop
+  'issueAStop',           // 17: A-Stop
+  'issueLowVoltage',      // 18: 電壓過低
+  'issueIntakeStuck',     // 19: Intake 卡住
+  'issueShooterOff',      // 20: Shooter 異常 (label: 不準)
+  'issueShooterStutter',  // 21: 射球不順 (短暫卡頓又恢復) (v1.8.0)
+  'issueStuckBump',       // 22: 卡在 Bump 上
+  'issueHitTrench',       // 23: 撞到 Trench
+  'issuePartFell',        // 24: 零件掉落
+  'issueMovement',        // 25: 行動異常
   // PostMatch Flags (6) — 0/1 (v1.6.0)
-  'flagYellowCard',       // 29: 黃牌
-  'flagRedCard',          // 30: 紅牌
-  'flagBelowExpected',    // 31: 表現低於預期
-  'flagTipped',           // 32: 翻倒
-  'flagRidingFuel',       // 33: 騎 Fuel
-  'flagStuckBall',        // 34: 卡球
+  'flagYellowCard',       // 26: 黃牌
+  'flagRedCard',          // 27: 紅牌
+  'flagBelowExpected',    // 28: 表現低於預期
+  'flagTipped',           // 29: 翻倒
+  'flagRidingFuel',       // 30: 騎 Fuel
+  'flagStuckBall',        // 31: 卡 fuel (label v1.9.0; key 保留)
   // PostMatch Collision (3 bool + 1 text) — v1.6.0
-  'hasCollision',         // 35: 有劇烈撞擊 (0/1)
-  'collisionField',       // 36: 撞到場地 (0/1)
-  'collisionRobot',       // 37: 撞到機器人 (0/1)
-  'collisionTeamNumbers', // 38: 撞到的隊伍號碼（文字）
+  'hasCollision',         // 32: 有劇烈撞擊 (0/1)
+  'collisionField',       // 33: 撞到場地 (0/1)
+  'collisionRobot',       // 34: 撞到機器人 (0/1)
+  'collisionTeamNumbers', // 35: 撞到的隊伍號碼（文字）
   // PostMatch Ratings (8) — good/ok/bad/空 (v1.7.0)
-  'ratingPushTrench',     // 39: 推球回 Alliance Zone (from trench) 評分
-  'ratingPushBump',       // 40: 推球回 Alliance Zone (from bump) 評分
-  'ratingShoot',          // 41: 射球回 Alliance Zone 評分
-  'ratingHuman',          // 42: 給 Human Player (Outpost) 評分
-  'ratingDefense',        // 43: Defense 評分
-  'ratingIntakeFuel',     // 44: 吸 fuel 評分 (v1.7.0)
-  'ratingTransportFuel',  // 45: 輸送 fuel 評分 (v1.7.0)
-  'ratingShootFuel',      // 46: 射擊 fuel 評分 (v1.7.0)
+  'ratingPushTrench',     // 36: 推球回 Alliance Zone (from trench) 評分
+  'ratingPushBump',       // 37: 推球回 Alliance Zone (from bump) 評分
+  'ratingShoot',          // 38: 射球回 Alliance Zone 評分
+  'ratingHuman',          // 39: 給 Human Player (Outpost) 評分
+  'ratingDefense',        // 40: Defense 評分
+  'ratingIntakeFuel',     // 41: 吸 fuel 評分 (v1.7.0)
+  'ratingTransportFuel',  // 42: 輸送 fuel 評分 (v1.7.0)
+  'ratingShootFuel',      // 43: 射擊 fuel 評分 (v1.7.0)
+  // PostMatch Other (3) — v1.9.0
+  'otherStealsOpponent',     // 44: 去對方 alliance zone 偷球 (0/1) (v1.9.0)
+  'ratingNeedFuel',          // 45: alliance zone 需要有球評分 (good/ok/bad) (v1.9.0)
+  'ratingShotUnderDefense',  // 46: 被 defense 影響射球評分 (good/ok/bad) (v1.9.0)
   // PostMatch free-text (1)
   'comments'              // 47: 自由輸入備註
 ];
@@ -204,7 +209,7 @@ function doGet(e) {
   var response = {
     success: true,
     message: 'FRC 6998 Scout Scanner API is running',
-    version: '1.8.0',
+    version: '1.9.0',
     timestamp: new Date().toISOString(),
     endpoints: {
       POST: 'Upload scouting data',
@@ -1141,9 +1146,6 @@ function testMatchUpload() {
     autoClimbStatus: 'Level1',
     autoClimbTime: '5',
     autoClimbPosition: 'Center',
-    bumpCount: '2',
-    trenchCount: '1',
-    fuelDroppedOnBumpCount: '0',
     minorPenalty: '1',
     majorPenalty: '0',
     teleClimbStatus: 'Level2',
@@ -1252,42 +1254,42 @@ function seedTestData() {
   var matchRows = [
     buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R1', teamNumber:'6998',
       autoClimbStatus:'Level1', autoClimbTime:'4', autoClimbPosition:'Center',
-      bumpCount:'2', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level2', teleClimbTime:'7', teleClimbPosition:'Left',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Fast auto' },
       '15.2,75.3|20.1,65.0|28.5,55.2|35.0,48.0|40.0,42.5', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Bob', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R2', teamNumber:'254',
       autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
-      bumpCount:'3', trenchCount:'2', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      minorPenalty:'1', majorPenalty:'0',
       teleClimbStatus:'Level3', teleClimbTime:'12', teleClimbPosition:'Right',
       robotDied:'0', almostTipped:'1', ridingOnBall:'0', comments:'Strong climb' },
       '10.0,80.0|18.0,70.0|25.0,60.0|30.0,52.0|38.0,45.0|45.0,40.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Charlie', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'R3', teamNumber:'1678',
       autoClimbStatus:'Level1', autoClimbTime:'3', autoClimbPosition:'LeftSide',
-      bumpCount:'1', trenchCount:'0', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level2', teleClimbTime:'6', teleClimbPosition:'Center',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Consistent auto' },
       '12.0,78.0|15.5,70.0|18.0,62.0|22.0,55.0|28.0,50.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Dave', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B1', teamNumber:'2056',
       autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
-      bumpCount:'0', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level1', teleClimbTime:'5', teleClimbPosition:'RightSide',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Smooth driving' },
       '85.0,75.0|80.0,65.0|72.0,55.0|65.0,48.0|60.0,42.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Eve', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B2', teamNumber:'3310',
       autoClimbStatus:'Level1', autoClimbTime:'5', autoClimbPosition:'Right',
-      bumpCount:'1', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level2', teleClimbTime:'9', teleClimbPosition:'Left',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Great defense' },
       '88.0,80.0|82.0,72.0|75.0,63.0|70.0,55.0|63.0,50.0|58.0,45.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Frank', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'1', alliance:'B3', teamNumber:'118',
       autoClimbStatus:'Level2', autoClimbTime:'7', autoClimbPosition:'Center',
-      bumpCount:'2', trenchCount:'2', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      minorPenalty:'1', majorPenalty:'0',
       teleClimbStatus:'Level3', teleClimbTime:'15', teleClimbPosition:'Center',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Aggressive play' },
       '90.0,78.0|85.0,68.0|78.0,58.0|72.0,50.0|65.0,45.0', uploadTime, uploadTime),
@@ -1295,14 +1297,14 @@ function seedTestData() {
     // QM2
     buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'2', alliance:'B1', teamNumber:'6998',
       autoClimbStatus:'Level2', autoClimbTime:'5', autoClimbPosition:'Center',
-      bumpCount:'1', trenchCount:'2', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level3', teleClimbTime:'10', teleClimbPosition:'Center',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Best match' },
       '88.0,72.0|82.0,62.0|75.0,53.0|68.0,45.0|60.0,40.0|55.0,35.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Bob', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'2', alliance:'B2', teamNumber:'254',
       autoClimbStatus:'Level1', autoClimbTime:'4', autoClimbPosition:'Left',
-      bumpCount:'2', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level2', teleClimbTime:'8', teleClimbPosition:'LeftSide',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Good auto' },
       '90.0,80.0|84.0,70.0|78.0,62.0|70.0,55.0|62.0,48.0', uploadTime, uploadTime),
@@ -1310,7 +1312,7 @@ function seedTestData() {
     // QM3
     buildMatchRow({ scouterName:'Charlie', eventCode:'2026TEST', matchLevel:'QM', matchNumber:'3', alliance:'R2', teamNumber:'6998',
       autoClimbStatus:'Level1', autoClimbTime:'3', autoClimbPosition:'Right',
-      bumpCount:'3', trenchCount:'1', fuelDroppedOnBumpCount:'1', minorPenalty:'1', majorPenalty:'0',
+      minorPenalty:'1', majorPenalty:'0',
       teleClimbStatus:'Level2', teleClimbTime:'9', teleClimbPosition:'Right',
       robotDied:'0', almostTipped:'1', ridingOnBall:'0', comments:'Tough defense' },
       '18.0,70.0|22.0,60.0|30.0,50.0|35.0,42.0|42.0,35.0', uploadTime, uploadTime),
@@ -1318,7 +1320,7 @@ function seedTestData() {
     // P1: 練習賽
     buildMatchRow({ scouterName:'Alice', eventCode:'2026TEST', matchLevel:'P', matchNumber:'1', alliance:'R1', teamNumber:'6998',
       autoClimbStatus:'None', autoClimbTime:'0', autoClimbPosition:'Center',
-      bumpCount:'0', trenchCount:'0', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'None', teleClimbTime:'0', teleClimbPosition:'Center',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Practice run' },
       '14.0,82.0|18.0,72.0|22.0,62.0|28.0,52.0', uploadTime, uploadTime),
@@ -1326,14 +1328,14 @@ function seedTestData() {
     // PO1: 季後賽
     buildMatchRow({ scouterName:'Dave', eventCode:'2026TEST', matchLevel:'PO', matchNumber:'1', alliance:'R1', teamNumber:'6998',
       autoClimbStatus:'Level2', autoClimbTime:'4', autoClimbPosition:'Center',
-      bumpCount:'2', trenchCount:'2', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level3', teleClimbTime:'8', teleClimbPosition:'Center',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Playoff run' },
       '16.0,76.0|22.0,66.0|30.0,56.0|38.0,46.0|45.0,38.0|50.0,32.0', uploadTime, uploadTime),
 
     buildMatchRow({ scouterName:'Eve', eventCode:'2026TEST', matchLevel:'PO', matchNumber:'1', alliance:'B1', teamNumber:'254',
       autoClimbStatus:'Level2', autoClimbTime:'5', autoClimbPosition:'Left',
-      bumpCount:'1', trenchCount:'1', fuelDroppedOnBumpCount:'0', minorPenalty:'0', majorPenalty:'0',
+      minorPenalty:'0', majorPenalty:'0',
       teleClimbStatus:'Level3', teleClimbTime:'10', teleClimbPosition:'Left',
       robotDied:'0', almostTipped:'0', ridingOnBall:'0', comments:'Finals' },
       '86.0,76.0|80.0,66.0|72.0,56.0|65.0,48.0|58.0,42.0|52.0,36.0', uploadTime, uploadTime),
