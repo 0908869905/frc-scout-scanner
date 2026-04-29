@@ -8,6 +8,7 @@ import {
   TSV_SCHEMA_MATCH,
   TSV_SCHEMA_PATH,
   TSV_SCHEMA_PIT_PATH,
+  TSV_SCHEMA_PIT_PATH_V2,
   TSV_SCHEMA_PIT,
   TSV_SCHEMA_PIT_EXTERNAL,
   TSV_SCHEMA_PIT_EXTERNAL_LEGACY,
@@ -21,8 +22,13 @@ import type { QRType, DecodeResult, PathPoint } from '../types';
 export function detectQRType(values: string[]): QRType {
   const length = values.length;
 
-  if (length === TSV_SCHEMA_PATH.length) return 'path';                         // 5
-  if (length === TSV_SCHEMA_PIT_PATH.length) return 'pit-path';                 // 4 (Pit Collect path / legacy path)
+  // 5 欄歧義：Scouting PASS path（無版本前綴）vs Pit Collect V2 pit-path（values[0] = 'v2'）
+  // 對應 minesoil/6998_Pit_Collect 目前版本：generatePathQR 在 path QR 加了 QR_VERSION 前綴
+  if (length === TSV_SCHEMA_PATH.length) {
+    const isPitPathV2 = /^v\d/i.test(values[0] || '');
+    return isPitPathV2 ? 'pit-path' : 'path';                                   // 5
+  }
+  if (length === TSV_SCHEMA_PIT_PATH.length) return 'pit-path';                 // 4 (legacy Pit Collect path)
   if (length === TSV_SCHEMA_PIT.length) return 'pit';                           // 13
   if (length === TSV_SCHEMA_PIT_EXTERNAL.length) return 'pit-external';         // 22 (舊 v2)
 
@@ -34,7 +40,7 @@ export function detectQRType(values: string[]): QRType {
   if (length === TSV_SCHEMA_PIT_EXTERNAL_V2.length) return 'pit-external';      // 23
 
   // 記錄未知欄位數量以便除錯
-  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_V2.length}`);
+  console.warn(`[detectQRType] Unknown field count: ${length}, expected: match=${TSV_SCHEMA_MATCH.length}, path=${TSV_SCHEMA_PATH.length}, pit-path=${TSV_SCHEMA_PIT_PATH.length}/${TSV_SCHEMA_PIT_PATH_V2.length}, pit=${TSV_SCHEMA_PIT.length}, pit-external=${TSV_SCHEMA_PIT_EXTERNAL.length}/${TSV_SCHEMA_PIT_EXTERNAL_V2.length}`);
 
   return 'unknown';
 }
@@ -66,7 +72,10 @@ export function decodeQR(qrContent: string): DecodeResult {
       schema = TSV_SCHEMA_PATH;
       break;
     case 'pit-path':
-      schema = TSV_SCHEMA_PIT_PATH;
+      // 兩種變體：4 欄 legacy（無版本前綴）/ 5 欄 V2（含 'v2' 版本前綴）
+      schema = values.length === TSV_SCHEMA_PIT_PATH_V2.length
+        ? TSV_SCHEMA_PIT_PATH_V2
+        : TSV_SCHEMA_PIT_PATH;
       break;
     case 'pit':
       schema = TSV_SCHEMA_PIT;

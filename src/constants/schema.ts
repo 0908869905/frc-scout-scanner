@@ -81,9 +81,21 @@ export const TSV_SCHEMA_PATH = [
   'autoPath',
 ] as const;
 
-// Pit Collect Path TSV Schema (4 栏位) - FRC6998 Pit Collect 路径 QR
+// Pit Collect Path TSV Schema (4 栏位) - FRC6998 Pit Collect 舊版路径 QR（無版本前綴）
 // eventCode 固定 "2026PIT"，matchNumber 固定 "0"
 export const TSV_SCHEMA_PIT_PATH = [
+  'eventCode',
+  'matchNumber',
+  'teamNumber',
+  'autoPath',
+] as const;
+
+// Pit Collect Path TSV Schema V2 (5 栏位) - FRC6998 Pit Collect 目前版本路径 QR
+// 第一欄 'v2' 版本前綴；長度與 Scouting PASS PATH 相同，靠 values[0] 開頭字母區分
+// 對應 minesoil/6998_Pit_Collect/js/qr.js 的 generatePathQR：
+//   [QR_VERSION, eventCode, '0' (matchNumber), teamNum, pathString]
+export const TSV_SCHEMA_PIT_PATH_V2 = [
+  'version',
   'eventCode',
   'matchNumber',
   'teamNumber',
@@ -192,7 +204,8 @@ export const TSV_SCHEMA_PIT_EXTERNAL_V2 = [
 export const SCHEMA_LENGTHS = {
   match: TSV_SCHEMA_MATCH.length,      // 48 (v1.9.0)
   path: TSV_SCHEMA_PATH.length,        // 5
-  pitPath: TSV_SCHEMA_PIT_PATH.length, // 4
+  pitPath: TSV_SCHEMA_PIT_PATH.length, // 4 (legacy)
+  pitPathV2: TSV_SCHEMA_PIT_PATH_V2.length, // 5 (含 version 前綴，與 PATH 同長度)
   pit: TSV_SCHEMA_PIT.length,          // 13
   pitExternal: TSV_SCHEMA_PIT_EXTERNAL.length,          // 22 (舊 v2 無版本)
   pitExternalLegacy: TSV_SCHEMA_PIT_EXTERNAL_LEGACY.length, // 23 (v1 含 stability)
