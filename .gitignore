@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# 環境變數（金鑰勿入版控）
+.env
+.env.*
+!.env.example
